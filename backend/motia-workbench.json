@@ -12,9 +12,142 @@
         "sourceHandlePosition": "right"
       },
       "src/hello/process_greeting_step.py": {
-        "x": 0,
-        "y": 34,
+        "x": 31,
+        "y": 36,
         "sourceHandlePosition": "right"
+      }
+    }
+  },
+  {
+    "id": "dealflow",
+    "config": {
+      "src/steps/events/notify_deal_created.step.js": {
+        "x": 1050,
+        "y": 223
+      },
+      "src/steps/events/handle_deal_update.step.js": {
+        "x": 350,
+        "y": 34
+      },
+      "src/steps/events/create_deal_from_inquiry.step.js": {
+        "x": 700,
+        "y": 223
+      },
+      "src/steps/api/dashboard/update-deal.step.js": {
+        "x": 0,
+        "y": 0
+      },
+      "src/steps/api/dashboard/send-auto-reply.step.js": {
+        "x": 0,
+        "y": 223
+      },
+      "src/steps/api/dashboard/creator-actions.step.js": {
+        "x": 0,
+        "y": 446
+      },
+      "src/steps/events/store_inquiry_step.js": {
+        "x": 0,
+        "y": 223
+      },
+      "src/steps/events/extract_inquiry_step.py": {
+        "x": 350,
+        "y": 223
+      }
+    }
+  },
+  {
+    "id": "dashboard",
+    "config": {
+      "src/steps/api/get-inquiries.step.js": {
+        "x": 61,
+        "y": 892
+      },
+      "src/steps/api/dashboard/update-deal.step.js": {
+        "x": 0,
+        "y": 203
+      },
+      "src/steps/api/dashboard/send-auto-reply.step.js": {
+        "x": 0,
+        "y": 426
+      },
+      "src/steps/api/dashboard/get-stats.step.js": {
+        "x": 0,
+        "y": 669
+      },
+      "src/steps/api/dashboard/get-deals.step.js": {
+        "x": 506,
+        "y": 228
+      },
+      "src/steps/api/dashboard/get-deal.step.js": {
+        "x": -501,
+        "y": 357
+      },
+      "src/steps/api/dashboard/creator-actions.step.js": {
+        "x": 0,
+        "y": 1318
+      }
+    }
+  },
+  {
+    "id": "webhooks",
+    "config": {
+      "src/steps/api/webhooks/facebook.step.js": {
+        "x": 15,
+        "y": 446
+      },
+      "src/steps/api/webhooks/facebook-event.step.js": {
+        "x": 0,
+        "y": 203
+      },
+      "src/steps/api/webhooks/email-event.step.js": {
+        "x": 425,
+        "y": 205
+      }
+    }
+  },
+  {
+    "id": "notifications",
+    "config": {
+      "src/steps/events/notify_deal_created.step.js": {
+        "x": 0,
+        "y": 0
+      },
+      "src/steps/events/handle_deal_update.step.js": {
+        "x": 0,
+        "y": 155
+      }
+    }
+  },
+  {
+    "id": "inquiry-processing",
+    "config": {
+      "src/steps/enrichment/enrich_sender.step.js": {
+        "x": 358,
+        "y": 396
+      },
+      "src/steps/api/get-inquiries.step.js": {
+        "x": -13,
+        "y": 581
+      },
+      "src/steps/api/webhooks/facebook-event.step.js": {
+        "x": -304,
+        "y": 233
+      },
+      "src/steps/api/webhooks/email-event.step.js": {
+        "x": -65,
+        "y": -30
+      },
+      "src/steps/events/store_inquiry_step.js": {
+        "x": 700,
+        "y": 146
+      },
+      "src/steps/events/extract_inquiry_step.py": {
+        "x": 1050,
+        "y": 146
+      },
+      "src/steps/events/classify_message_step.py": {
+        "x": 350,
+        "y": 146
       }
     }
   }
