@@ -14,7 +14,7 @@ const stringifyDeliverables = (deliverables = []) =>
         .join(';')
 
 export const handler = async (input, ctx) => {
-    const { inquiryId, deliverables = [], proposedBudget, platformOrContentType } = input || {}
+    const { inquiryId, dealId: incomingDealId, threadKey: incomingThreadKey, deliverables = [], proposedBudget, platformOrContentType } = input || {}
     if (!inquiryId) {
         ctx.logger.warn('NegotiationContextGate: missing inquiryId')
         return
@@ -62,8 +62,36 @@ export const handler = async (input, ctx) => {
 
     // Resolve creatorId/dealId if available
     const inquiry = await ctx.state.get('inquiries', inquiryId)
-    const dealId = inquiry?.dealId || null
-    const deal = dealId ? await ctx.state.get('deals', dealId) : null
+    const threadKey = incomingThreadKey || inquiry?.threadKey
+
+    let dealId = incomingDealId || inquiry?.dealId || null
+    let deal = dealId ? await ctx.state.get('deals', dealId) : null
+
+    if (!deal && threadKey) {
+        const deals = await ctx.state.getGroup('deals')
+        // Strategy 1: Thread Key
+        deal = (deals || []).find(
+            (d) => d.threadKey === threadKey && !['completed', 'cancelled', 'declined'].includes((d.status || '').toLowerCase())
+        )
+        // Strategy 2: Brand/Creator fallback (if we can infer creatorId default)
+        if (!deal) {
+            const defaultCreatorId = 'default-creator' // Simplified for MVP
+            // We can try to look up by brandId from inquiry sender if available, but gate input is normalized. 
+            // We rely primarily on threadKey here as it comes from BrandContext which comes from Inquiry.
+            // But if we have inquiryId, we can check the inquiry for senderId
+            const inquiry = await ctx.state.get('inquiries', inquiryId)
+            const senderId = inquiry?.senderId || inquiry?.sender?.id
+            if (senderId) {
+                deal = (deals || []).find((d) =>
+                    d.brandId === senderId &&
+                    d.creatorId === defaultCreatorId &&
+                    !['completed', 'cancelled', 'declined'].includes((d.status || '').toLowerCase())
+                )
+            }
+        }
+        dealId = deal?.dealId || dealId
+    }
+
     const creatorId = deal?.creatorId || 'default-creator'
 
     await ctx.emit({

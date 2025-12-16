@@ -14,6 +14,7 @@ config = {
             "source": {"type": "string"},
             "body": {"type": "string"},
             "senderId": {"type": "string"},
+            "threadKey": {"type": "string"},
             "sender": {
                 "type": "object",
                 "properties": {
@@ -40,6 +41,7 @@ async def handler(input_data, context):
     inquiry_id = input_data.get("inquiryId")
     body = input_data.get("body")
     source = input_data.get("source")
+    thread_key = input_data.get("threadKey")
     # Capture sender from input to pass it forward
     sender = input_data.get("sender")
     
@@ -159,6 +161,7 @@ CRITICAL: Return ONLY the JSON object. No markdown code blocks, no explanations.
             "data": {
                 "inquiryId": inquiry_id,
                 "source": source,
+                "threadKey": thread_key or inquiry.get("threadKey"),
                 "extracted": extracted,
                 "sender": sender or inquiry.get("sender") # Pass sender ensuring it exists
             }

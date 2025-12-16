@@ -16,6 +16,8 @@ export const handler = async (input, ctx) => {
         return
     }
 
+    const threadKey = `${source || 'unknown'}:${senderId || sender?.id || 'unknown'}`
+
     const baseEvent = {
         inquiryId,
         source,
@@ -23,6 +25,8 @@ export const handler = async (input, ctx) => {
         rawMessage: body,
         senderId: senderId || sender?.id || null,
         sender: sender || null,
+        senderType: 'brand',
+        threadKey,
         receivedAt: new Date().toISOString()
     }
 
