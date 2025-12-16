@@ -90,7 +90,7 @@ export const generateRateRecommendation = async (
     try {
         const groq = new Groq({ apiKey })
         const completion = await groq.chat.completions.create({
-            model: 'meta',
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
             temperature: 0.2,
             response_format: { type: 'json_object' },
             messages: [

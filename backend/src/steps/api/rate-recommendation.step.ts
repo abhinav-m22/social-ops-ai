@@ -73,7 +73,10 @@ export const config: ApiRouteConfig = {
 export const handler = async (req: any, ctx: any) => {
     ctx.logger.info('RateRecommendation: received request', {
         flow: 'dealflow',
-        traceId: ctx.traceId
+        traceId: ctx.traceId,
+        body: req.body,
+        headers: req.headers,
+        query: req.query,
     })
 
     const parsed = requestSchema.safeParse(req.body ?? {})

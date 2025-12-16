@@ -12,10 +12,16 @@ declare module 'motia' {
   }
 
   interface Handlers {
+    'RateCalculationWorkflow': EventHandler<never, never>
     'NotifyDealCreated': EventHandler<never, never>
+    'NegotiationContextGate': EventHandler<never, { topic: 'NegotiationEvaluationRequested'; data: never }>
     'HandleDealUpdate': EventHandler<never, never>
+    'CreatorDecisionBridge': EventHandler<never, never>
     'CreateDealFromInquiry': EventHandler<{ inquiryId: string; source: string; extracted: unknown; sender?: unknown }, { topic: 'deal.created'; data: never }>
+    'BrandInquiryBridge': EventHandler<never, never>
+    'BrandContextUpdated': EventHandler<never, { topic: 'BrandContextUpdated'; data: never }>
     'EnrichSender': EventHandler<never, { topic: 'message.enriched'; data: { messageId: string; source: string; body: string; senderId?: string; sender?: { name?: string; platform?: string; id?: string }; subject?: string; pageName?: string } }>
+    'RateRecommendation': ApiRouteHandler<{ brandDetails: { brandName: string; deliverables: string; proposedBudget?: number | unknown }; creatorMetrics: { niche: string; followers: number; platform: 'instagram' | 'youtube' | 'facebook'; contentType: 'reel' | 'video' | 'post' | 'short'; country?: 'India' | 'US'; avgLikes: number; avgComments: number; avgShares: number; avgViews: number; postsLast30Days: number } }, unknown, never>
     'GetInquiries': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'FacebookWebhookVerify': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'FacebookWebhookEvent': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'message.received'; data: never }>
