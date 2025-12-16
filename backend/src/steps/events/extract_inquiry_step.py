@@ -26,13 +26,13 @@ config = {
         "required": ["inquiryId", "source", "body"]
     },
     "emits": ["inquiry.extracted"],
-    "description": "Extracts structured brand deal data using Groq AI (Llama 3)",
+    "description": "Extracts structured brand deal data using Groq AI (Llama 4 Scout)",
     "flows": ["inquiry-processing", "dealflow"]
 }
 
 async def handler(input_data, context):
     """
-    Extracts brand collaboration details from raw inquiry text using Groq's Llama 3.
+    Extracts brand collaboration details from raw inquiry text using Groq's Llama 4 Scout.
     
     Input: { inquiryId, source, body, senderId?, sender? }
     Output: Emits inquiry.extracted with structured data
@@ -90,7 +90,7 @@ Required JSON structure:
 CRITICAL: Return ONLY the JSON object. No markdown code blocks, no explanations."""
         
         # Call Groq API
-        # Using llama3-70b-8192 as primary model (fallback to meta-llama/llama-4-scout-17b-16e-instruct if needed)
+        # Using meta-llama/llama-4-scout-17b-16e-instruct as primary model
         completion = client.chat.completions.create(
             model="meta-llama/llama-4-scout-17b-16e-instruct",
             messages=[
