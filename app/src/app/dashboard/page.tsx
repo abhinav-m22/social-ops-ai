@@ -86,9 +86,11 @@ const DashboardPage = () => {
   }
 
   const grouped = useMemo(() => {
-    const newInquiries = deals.filter(d => d.status === "new" || d.status === "awaiting_details")
+    const newInquiries = deals.filter(d =>
+      ["new", "awaiting_details", "awaiting_response", "NEGOTIATION_READY", "RATE_RECOMMENDED"].includes(d.status)
+    )
     const active = deals.filter(d =>
-      ["active", "negotiating", "awaiting_response", "awaiting_details"].includes(d.status)
+      ["active", "negotiating", "FINALIZED"].includes(d.status)
     )
     const completed = deals.filter(d => ["completed", "declined", "cancelled"].includes(d.status))
     return { newInquiries, active, completed }
