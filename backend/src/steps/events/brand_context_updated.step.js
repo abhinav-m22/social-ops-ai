@@ -43,12 +43,47 @@ export const handler = async (input, ctx) => {
         inferred: platformGuess.inferred || false
     }
 
+    // Determine thread and deal linkage
+    const inquiry = await ctx.state.get('inquiries', inquiryId)
+    const threadKey = inquiry?.threadKey || `${source || 'unknown'}:${inquiry?.senderId || 'unknown'}`
+
+    // Try to link to an existing deal for this thread
+    // Strategy 1: Match by unique thread/conversation key
+    const deals = await ctx.state.getGroup('deals')
+    let existingDeal = (deals || []).find(
+        (d) => d.threadKey === threadKey && !['completed', 'cancelled', 'declined'].includes((d.status || '').toLowerCase())
+    )
+
+    // Strategy 2: Match by BrandId (if threadKey match failed)
+    const senderId = inquiry?.senderId || (source === 'facebook' ? (inquiry?.sender?.id) : null)
+    if (!existingDeal && senderId) {
+        existingDeal = (deals || []).find(
+            (d) =>
+                d.brandId === senderId &&
+                !['completed', 'cancelled', 'declined'].includes((d.status || '').toLowerCase())
+        )
+    }
+
+    const existingContext = (await ctx.state.get('brandContexts', inquiryId)) || {}
+
+    // MERGE STRATEGY:
+    // - Deliverables: New overwrite old IF present/non-empty. Else keep old.
+    // - Budget: New overwrites old IF present. Else keep old.
+    // - Platform: New overwrites old.
+    const mergedDeliverables = (deliverables && deliverables.length > 0)
+        ? deliverables
+        : existingContext.deliverables || []
+
+    const mergedBudget = proposedBudget ?? existingContext.proposedBudget ?? null
+
     const normalized = {
         inquiryId,
+        dealId: existingDeal?.dealId || inquiry?.dealId || existingContext.dealId || null,
+        threadKey,
         source,
-        brandName: brand.name || null,
-        deliverables,
-        proposedBudget,
+        brandName: brand.name || existingContext.brandName || null,
+        deliverables: mergedDeliverables,
+        proposedBudget: mergedBudget,
         platformOrContentType,
         updatedAt: new Date().toISOString()
     }

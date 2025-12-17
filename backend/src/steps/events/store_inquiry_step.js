@@ -59,6 +59,7 @@ export const handler = async (input, ctx) => {
         : source === 'email'
             ? `EMAIL-${Date.now()}-${messageId.slice(-6)}`
             : `${source.toUpperCase()}-${Date.now()}-${messageId.slice(-6)}`
+    const threadKey = `${source || 'unknown'}:${senderId || 'unknown'}`
 
     try {
         // Store inquiry in state
@@ -73,6 +74,7 @@ export const handler = async (input, ctx) => {
             subject: subject || null,
             receivedAt: new Date().toISOString(),
             status: 'new',
+            threadKey,
             classification: {
                 isBrandInquiry: isBrandInquiry,
                 confidence: confidence,
@@ -106,7 +108,8 @@ export const handler = async (input, ctx) => {
                 source: source,
                 body: body,
                 senderId: senderId,
-                sender: sender // Pass it down
+                sender: sender, // Pass it down
+                threadKey
             }
         })
 

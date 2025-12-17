@@ -34,3 +34,22 @@ export const updateDeal = async (dealId: string, updates: Partial<Deal>) => {
   return handle<{ deal: Deal }>(res)
 }
 
+export const submitNegotiationAction = async (
+  dealId: string,
+  action: "accept" | "counter" | "decline",
+  amount?: number,
+  message?: string
+) => {
+  const res = await fetch(`${API_BASE}/api/deals/${dealId}/auto-reply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      mode: "negotiation",
+      action,
+      amount,
+      message,
+    }),
+  })
+  return handle<{ deal: Deal }>(res)
+}
+

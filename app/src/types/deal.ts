@@ -7,7 +7,10 @@ export type DealStatus =
   | "active"
   | "completed"
   | "cancelled"
-  | "declined";
+  | "declined"
+  | "NEGOTIATION_READY"
+  | "RATE_RECOMMENDED"
+  | "FINALIZED";
 
 export type ConfidenceLevel = "high" | "medium" | "low";
 
@@ -18,6 +21,28 @@ export interface Deliverable {
   description: string;
   dueDate: string;
   status: "pending" | "in_progress" | "submitted" | "approved";
+}
+
+export interface RateMetrics {
+  baselineRate: number;
+  engagementRate: number;
+  engagementMultiplier: number;
+  engagementAdjustedRate: number;
+  viewRatio: number;
+  viewMultiplier: number;
+  consistencyMultiplier: number;
+  reachAdjustedRate: number;
+}
+
+export interface NegotiationData {
+  brandOfferedAmount: number;
+  aiRecommendedRates: {
+    conservative: number;
+    market: number;
+    premium: number;
+  };
+  budgetAssessment: "accept" | "counter" | "decline";
+  rateMetrics?: RateMetrics;
 }
 
 export interface Deal {
@@ -43,6 +68,7 @@ export interface Deal {
   autoReplyAt?: string | null;
   autoReplyMessage?: string | null;
   aiSuggestedReply?: string | null;
+  negotiation?: NegotiationData;
   terms: {
     deliverables: Deliverable[];
     proposedBudget?: number | null;
@@ -79,5 +105,8 @@ export const statusLabels: Record<DealStatus, string> = {
   completed: "Completed",
   cancelled: "Cancelled",
   declined: "Declined",
+  NEGOTIATION_READY: "Negotiation Ready",
+  RATE_RECOMMENDED: "Action Required",
+  FINALIZED: "Finalized",
 };
 
