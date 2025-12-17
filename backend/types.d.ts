@@ -12,6 +12,7 @@ declare module 'motia' {
   }
 
   interface Handlers {
+    'UpdateDealNegotiation': EventHandler<never, { topic: 'deal.updated'; data: never }>
     'RateCalculationWorkflow': EventHandler<never, { topic: 'RateRecommendationGenerated'; data: never }>
     'NotifyDealCreated': EventHandler<never, never>
     'NegotiationContextGate': EventHandler<never, { topic: 'NegotiationEvaluationRequested'; data: never }>
@@ -21,7 +22,6 @@ declare module 'motia' {
     'BrandInquiryBridge': EventHandler<never, never>
     'BrandContextUpdated': EventHandler<never, { topic: 'BrandContextUpdated'; data: never }>
     'EnrichSender': EventHandler<never, { topic: 'message.enriched'; data: { messageId: string; source: string; body: string; senderId?: string; sender?: { name?: string; platform?: string; id?: string }; subject?: string; pageName?: string } }>
-    'RateRecommendation': ApiRouteHandler<{ brandDetails: { brandName: string; deliverables: string; proposedBudget?: number | unknown }; creatorMetrics: { niche: string; followers: number; platform: 'instagram' | 'youtube' | 'facebook'; contentType: 'reel' | 'video' | 'post' | 'short'; country?: 'India' | 'US'; avgLikes: number; avgComments: number; avgShares: number; avgViews: number; postsLast30Days: number } }, unknown, never>
     'GetInquiries': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'FacebookWebhookVerify': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'FacebookWebhookEvent': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'message.received'; data: never }>
@@ -38,7 +38,6 @@ declare module 'motia' {
     'ExtractInquiry': EventHandler<{ inquiryId: string; source: string; body: string; senderId?: string; threadKey?: string; sender?: { name?: string; platform?: string; id?: string } }, { topic: 'inquiry.extracted'; data: { inquiryId: string; source: string; extracted: unknown; sender?: unknown } }>
     'ClassifyMessage': EventHandler<{ messageId: string; source: string; body: string; senderId?: string; sender?: { name?: string; platform?: string; id?: string }; subject?: string; pageName?: string }, { topic: 'message.classified'; data: { messageId: string; source: string; body: string; subject?: string; senderId?: string; sender?: unknown; isBrandInquiry: boolean; confidence?: number; reasoning?: string; keywords?: Array<unknown>; classifiedAt?: string } }>
     'ProcessGreeting': EventHandler<{ timestamp: string; appName: string; greetingPrefix: string; requestId: string }, { topic: 'greeting-processed'; data: { requestId: string; greeting: string; processedBy: string } }>
-    'UpdateDealNegotiation': EventHandler<never, { topic: 'deal.updated'; data: never }>
   }
     
 }

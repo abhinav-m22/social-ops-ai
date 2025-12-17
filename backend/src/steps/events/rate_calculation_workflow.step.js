@@ -1,4 +1,6 @@
 // Orchestrates calling the internal rate recommendation API and persisting snapshots
+import { handler as rateRecommendationHandler } from '../api/rate-recommendation.step.ts'
+
 export const config = {
     type: 'event',
     name: 'RateCalculationWorkflow',
@@ -79,7 +81,7 @@ const getCreatorMetrics = async (creatorId, platformOrContentType, ctx) => {
     }
 
     const profile = (await ctx.state.get('profiles', creatorId)) || {}
-    const pageId = profile.facebookPageId || profile.platformAccountId
+    const pageId = profile.facebookPageId || profile.platformAccountId || process.env.FB_PAGE_ID
     const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_TOKEN
 
     const metrics = await fetchFacebookMetrics(pageId, token, ctx.logger)
@@ -120,17 +122,58 @@ export const handler = async (input, ctx) => {
     let status = 'success'
 
     try {
-        const response = await fetch('http://127.0.0.1:3000/internal/rate-recommendation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ brandDetails, creatorMetrics })
-        })
+        // Call the rate recommendation handler directly
+        const result = await rateRecommendationHandler(
+            {
+                body: { brandDetails, creatorMetrics },
+                headers: {},
+                query: {},
+                pathParams: {}
+            },
+            ctx
+        )
 
-        if (!response.ok) {
-            throw new Error(`Rate API responded with status ${response.status}`)
+        if (result.status !== 200) {
+            throw new Error(`Rate API responded with status ${result.status}: ${result.body?.error || 'unknown error'}`)
         }
 
-        apiResponse = await response.json()
+        apiResponse = result.body
+
+        ctx.logger.info('RateCalculationWorkflow: rate recommendation response', {
+            success: apiResponse.success,
+            baselineRate: apiResponse.baselineRate,
+            engagementRate: apiResponse.engagementRate,
+            engagementMultiplier: apiResponse.engagementMultiplier,
+            engagementAdjustedRate: apiResponse.engagementAdjustedRate,
+            viewRatio: apiResponse.viewRatio,
+            viewMultiplier: apiResponse.viewMultiplier,
+            consistencyMultiplier: apiResponse.consistencyMultiplier,
+            reachAdjustedRate: apiResponse.reachAdjustedRate,
+            marketData: apiResponse.marketData ? {
+                min: apiResponse.marketData.min,
+                max: apiResponse.marketData.max,
+                avg: apiResponse.marketData.avg
+            } : null,
+            recommendation: apiResponse.recommendation ? {
+                conservative: {
+                    rate: apiResponse.recommendation.conservative?.rate,
+                    rationale: apiResponse.recommendation.conservative?.rationale
+                },
+                market: {
+                    rate: apiResponse.recommendation.market?.rate,
+                    rationale: apiResponse.recommendation.market?.rationale
+                },
+                premium: {
+                    rate: apiResponse.recommendation.premium?.rate,
+                    rationale: apiResponse.recommendation.premium?.rationale
+                },
+                budgetAssessment: {
+                    decision: apiResponse.recommendation.budgetAssessment?.decision,
+                    rationale: apiResponse.recommendation.budgetAssessment?.rationale
+                }
+            } : null
+        })
+        
     } catch (err) {
         status = 'calculator_failed'
         apiResponse = {
