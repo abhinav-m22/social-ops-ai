@@ -81,8 +81,6 @@ const DashboardPage = () => {
   const handleManualSend = async (message: string) => {
     if (!selectedDeal) return
     await handleSmartReply(selectedDeal, message)
-    const res = await updateDeal(selectedDeal.dealId, { status: "awaiting_response" })
-    setDeals(prev => prev.map(d => (d.dealId === selectedDeal.dealId ? res.deal : d)))
   }
 
   const grouped = useMemo(() => {

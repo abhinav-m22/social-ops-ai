@@ -1,16 +1,14 @@
 // Event handler: Creates or updates a deal from extracted inquiry data, maintaining continuity per thread
 import { calculateConfidenceScore } from '../../lib/scoring/calculateConfidenceScore.js'
-import { HIGH_CONFIDENCE_TEMPLATE, personalizeMessage } from '../../lib/replies/autoReplyTemplates.js'
+import { generateProposalWithFallback } from '../../lib/agents/generateProposal.js'
 
 export const config = {
     type: 'event',
     name: 'CreateDealFromInquiry',
     subscribes: ['inquiry.extracted'],
-    emits: ['deal.created', 'deal.updated', 'deal.auto_reply_sent'],
+    emits: ['deal.created', 'deal.updated', 'deal.auto_reply_sent', 'NegotiationEvaluationRequested'],
     description: 'Creates a deal record from extracted inquiry data and stores it in state',
     flows: ['dealflow'],
-    // Input schema: data emitted from extract_inquiry_step.py
-    // The input is the data object directly (not wrapped)
     input: {
         type: 'object',
         properties: {
@@ -24,9 +22,6 @@ export const config = {
 }
 
 export const handler = async (input, ctx) => {
-    // In Motia, event handlers receive the data object directly
-    // The emit was: { topic: 'inquiry.extracted', data: { inquiryId, source, extracted } }
-    // So input is the data object: { inquiryId, source, extracted }
     const { inquiryId, source, extracted, sender } = input
 
     ctx.logger.info('='.repeat(80))
@@ -64,7 +59,6 @@ export const handler = async (input, ctx) => {
             inquirySender: !!inquiry.sender
         })
 
-        // Default creator profile (could be fetched from ctx/state later)
         const creatorProfile = {
             id: 'default-creator',
             interests: ['tech', 'gadgets', 'reviews'],
@@ -74,8 +68,6 @@ export const handler = async (input, ctx) => {
             redFlags: ['perpetuity', 'exclusive_6month', 'unlimited revisions']
         }
 
-        // ROUTING LOGIC: Find existing deal
-        // Strategy 1: Match by unique thread/conversation key
         const allDeals = await ctx.state.getGroup('deals')
         let existingDeal = (allDeals || []).find(
             (d) =>
@@ -83,8 +75,6 @@ export const handler = async (input, ctx) => {
                 !['completed', 'cancelled', 'declined'].includes((d.status || '').toLowerCase())
         )
 
-        // Strategy 2: Match by Brand + Creator pair (if threadKey match failed)
-        // This handles cases where threadKey might fluctuate or be missing, but it's the same actors
         if (!existingDeal && sender?.id) {
             existingDeal = (allDeals || []).find(
                 (d) =>
@@ -94,16 +84,12 @@ export const handler = async (input, ctx) => {
             )
         }
 
-        // Generate deal ID only if we truly need a new one
         const dealId = existingDeal?.dealId || `DEAL-${Date.now()}-${inquiryId.slice(-6)}`
 
-        // Extract brand information
         const brand = extracted.brand || {}
         const campaign = extracted.campaign || {}
         const deliverables = campaign.deliverables || []
         const proposedBudget = campaign?.budget?.amount
-
-        // Context for budget derived from campaign details
 
         const confidence = calculateConfidenceScore(
             {
@@ -117,7 +103,6 @@ export const handler = async (input, ctx) => {
 
         const createdAt = new Date().toISOString()
 
-        // If existing deal, update in place
         if (existingDeal) {
             ctx.logger.info(`Updating existing deal ${dealId} with new inquiry data.`)
 
@@ -144,15 +129,23 @@ export const handler = async (input, ctx) => {
                 ctx.logger.info(`Merged proposed budget: No new budget found, keeping existing.`, { oldBudget: existingDeal.terms?.proposedBudget });
             }
 
+            const budgetChanged = proposedBudget !== undefined && proposedBudget !== null && 
+                                 proposedBudget !== existingDeal.terms?.proposedBudget
+            const deliverablesChanged = deliverables && deliverables.length > 0 && 
+                                       JSON.stringify(mergedDeliverables) !== JSON.stringify(existingDeal.terms?.deliverables)
+
+            const previousDeliverables = existingDeal.terms?.deliverables || []
+            const previousBudget = existingDeal.terms?.proposedBudget
+            const previousMessage = existingDeal.message
+
             const updatedDeal = {
                 ...existingDeal,
                 inquiryId,
-                message: inquiry.body || existingDeal.message,
+                message: inquiry.body || existingDeal.message, 
+                rawInquiry: inquiry.body, 
+                extractedData: extracted, 
                 terms: {
                     ...existingDeal.terms,
-                    // MERGE STRATEGY:
-                    // - Deliverables: New overwrite old IF present. Else keep old.
-                    // - Budget: New overwrites old IF present. Else keep old.
                     deliverables: mergedDeliverables,
                     proposedBudget: mergedProposedBudget
                 },
@@ -163,7 +156,23 @@ export const handler = async (input, ctx) => {
                         event: 'message_appended',
                         data: {
                             inquiryId,
-                            threadKey
+                            threadKey,
+                            newMessage: inquiry.body,
+                            previousMessage: previousMessage,
+                            budgetChanged,
+                            deliverablesChanged,
+                            previousDeliverables: previousDeliverables.map(d => ({
+                                type: d.type,
+                                count: d.count,
+                                description: d.description
+                            })),
+                            updatedDeliverables: mergedDeliverables.map(d => ({
+                                type: d.type,
+                                count: d.count,
+                                description: d.description
+                            })),
+                            previousBudget: previousBudget,
+                            updatedBudget: mergedProposedBudget
                         }
                     }
                 ]
@@ -171,10 +180,57 @@ export const handler = async (input, ctx) => {
 
             await ctx.state.set('deals', dealId, updatedDeal)
 
-            // Link inquiry to the existing deal
             inquiry.dealId = dealId
+            inquiry.threadKey = threadKey
             inquiry.status = inquiry.status || 'extracted'
             await ctx.state.set('inquiries', inquiryId, inquiry)
+
+            const isFinalized = ['active', 'completed', 'declined', 'cancelled', 'FINALIZED'].includes(existingDeal.status?.toUpperCase() || '')
+            
+            if ((budgetChanged || deliverablesChanged) && !isFinalized) {
+                ctx.logger.info('Key deal terms changed, updating brand context for rate recalculation', {
+                    dealId,
+                    budgetChanged,
+                    deliverablesChanged,
+                    currentStatus: existingDeal.status
+                })
+                
+                const existingContext = await ctx.state.get('brandContexts', inquiryId) || {}
+                const platformGuess = deliverables.length > 0 ? (() => {
+                    const type = (deliverables[0]?.type || '').toLowerCase()
+                    if (type.includes('instagram')) return { platform: 'instagram', contentType: type.includes('reel') ? 'reel' : 'post' }
+                    if (type.includes('youtube')) return { platform: 'youtube', contentType: type.includes('short') ? 'short' : 'video' }
+                    if (type.includes('facebook')) return { platform: 'facebook', contentType: 'video' }
+                    return { platform: null, contentType: null }
+                })() : {}
+
+                await ctx.state.set('brandContexts', inquiryId, {
+                    ...existingContext,
+                    inquiryId,
+                    dealId,
+                    threadKey,
+                    source,
+                    brandName: updatedDeal.brand?.name,
+                    deliverables: mergedDeliverables,
+                    proposedBudget: mergedProposedBudget,
+                    platformOrContentType: {
+                        platform: platformGuess.platform || existingContext.platformOrContentType?.platform,
+                        contentType: platformGuess.contentType || existingContext.platformOrContentType?.contentType,
+                        inferred: !!platformGuess.platform
+                    },
+                    updatedAt: createdAt
+                })
+
+                await ctx.emit({
+                    topic: 'NegotiationEvaluationRequested',
+                    data: {
+                        inquiryId,
+                        dealId,
+                        creatorId: updatedDeal.creatorId || 'default-creator',
+                        negotiationRound: (existingDeal.history?.filter(h => h.event === 'message_appended').length || 0) + 1
+                    }
+                })
+            }
 
             await ctx.emit({
                 topic: 'deal.updated',
@@ -182,7 +238,9 @@ export const handler = async (input, ctx) => {
                     dealId,
                     previousStatus: existingDeal.status,
                     newStatus: updatedDeal.status,
-                    updates: ['terms', 'message']
+                    updates: ['terms', 'message'],
+                    budgetChanged,
+                    deliverablesChanged
                 }
             })
 
@@ -199,7 +257,6 @@ export const handler = async (input, ctx) => {
             }
         }
 
-        // Create deal object matching the Deal interface
         const baseHistory = [
             {
                 timestamp: createdAt,
@@ -253,59 +310,68 @@ export const handler = async (input, ctx) => {
                     type: del.type || 'other',
                     count: del.count || 1,
                     description: del.description || '',
-                    dueDate: '', // Will be calculated based on timeline
+                    dueDate: '', 
                     status: 'pending'
                 })),
                 proposedBudget: proposedBudget || null,
-                agreedRate: 0, // Will be calculated later
+                agreedRate: 0, 
                 gst: 0,
                 total: 0
             },
 
             timeline: {
                 inquiryReceived: inquiry.receivedAt || createdAt,
-                ratesCalculated: null, // Will be set when rates are calculated
+                ratesCalculated: null, 
                 dealCreated: createdAt,
                 autoReplySent: confidence.level === 'high' ? createdAt : null
             },
 
             history: baseHistory,
 
-            // Store extracted data for reference
             extractedData: extracted,
             source: source,
             rawInquiry: inquiry.body
         }
 
         if (confidence.level === 'high') {
-            const autoReply = personalizeMessage(
-                HIGH_CONFIDENCE_TEMPLATE,
-                deal.brand.contactPerson,
-                deal.brand.name
-            )
-            deal.autoReplyMessage = autoReply
-            deal.aiSuggestedReply = autoReply
-            deal.history.push({
-                timestamp: createdAt,
-                event: 'auto_reply_sent',
-                data: {
-                    message: autoReply,
-                    confidenceScore: confidence.score
-                }
-            })
-            await ctx.emit({
-                topic: 'deal.auto_reply_sent',
-                data: {
+            try {
+                const autoReply = await generateProposalWithFallback(
+                    deal,
+                    creatorProfile,
+                    `Hi ${deal.brand.contactPerson || deal.brand.name || 'there'}, thank you for reaching out! This sounds like an interesting opportunity. Could you please share more details about the specific deliverables, timeline, and budget range you have in mind? This will help me evaluate if we are a good fit. Looking forward to hearing from you!`,
+                    ctx.logger,
+                    { action: 'send_proposal' }
+                )
+                deal.autoReplyMessage = autoReply
+                deal.aiSuggestedReply = autoReply
+                deal.history.push({
+                    timestamp: createdAt,
+                    event: 'auto_reply_sent',
+                    data: {
+                        message: autoReply,
+                        confidenceScore: confidence.score,
+                        generatedBy: 'ai'
+                    }
+                })
+                await ctx.emit({
+                    topic: 'deal.auto_reply_sent',
+                    data: {
+                        dealId,
+                        inquiryId,
+                        brand: deal.brand,
+                        autoReply
+                    }
+                })
+                ctx.logger.info('✅ AI-generated auto reply dispatched for high-confidence deal', {
                     dealId,
-                    inquiryId,
-                    brand: deal.brand,
-                    autoReply
-                }
-            })
-            ctx.logger.info('✅ Auto reply dispatched for high-confidence deal', {
-                dealId,
-                confidence: confidence.score
-            })
+                    confidence: confidence.score
+                })
+            } catch (error) {
+                ctx.logger.error('Failed to generate AI reply, skipping auto-reply', {
+                    dealId,
+                    error: error.message
+                })
+            }
         } else {
             deal.history.push({
                 timestamp: createdAt,
@@ -317,7 +383,6 @@ export const handler = async (input, ctx) => {
             })
         }
 
-        // Store deal in state
         await ctx.state.set('deals', dealId, deal)
 
         ctx.logger.info('✅ Deal created and stored', {
@@ -327,13 +392,11 @@ export const handler = async (input, ctx) => {
             deliverablesCount: deal.terms.deliverables.length
         })
 
-        // Update inquiry status to link it to the deal
         inquiry.dealId = dealId
         inquiry.threadKey = threadKey
         inquiry.status = 'deal_created'
         await ctx.state.set('inquiries', inquiryId, inquiry)
 
-        // Emit deal.created event for next steps (rate calculation, notifications, etc.)
         await ctx.emit({
             topic: 'deal.created',
             data: {
@@ -363,7 +426,6 @@ export const handler = async (input, ctx) => {
             stack: error.stack
         })
 
-        // Mark inquiry as failed
         try {
             if (inquiry) {
                 inquiry.status = 'deal_creation_failed'

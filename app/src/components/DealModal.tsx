@@ -3,7 +3,7 @@ import { Deal } from "@/types/deal"
 import { formatCurrency, formatDate, cn } from "@/lib/ui"
 import { ConfidenceBadge } from "./ConfidenceBadge"
 import { StatusBadge } from "./StatusBadge"
-import { X, Mail, Sparkles, ShieldAlert, ChevronDown, ChevronUp } from "lucide-react"
+import { X, Mail, Sparkles, ShieldAlert, ChevronDown, ChevronUp, Package, DollarSign, TrendingUp, Clock, MessageSquare } from "lucide-react"
 import { submitNegotiationAction } from "@/lib/api"
 
 type Props = {
@@ -113,59 +113,215 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-6 space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Received Message</div>
-              <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base">{deal.message}</p>
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/30 p-6 space-y-3 shadow-sm">
+              <div className="flex items-center gap-2 text-blue-800 font-bold">
+                <MessageSquare size={18} className="text-blue-600" />
+                Latest Brand Message
+              </div>
+              <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base bg-white rounded-lg p-4 border border-blue-100">
+                {(() => {
+                  if (deal.message) return deal.message
+                  if (deal.rawInquiry) return deal.rawInquiry
+                  const latestMessageEntry = deal.history
+                    ?.filter(h => h.event === 'message_appended' && h.data?.newMessage)
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
+                  if (latestMessageEntry?.data?.newMessage) return latestMessageEntry.data.newMessage
+                  return "No message available"
+                })()}
+              </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Extracted Deliverables</div>
-                <ul className="mt-3 space-y-2.5 text-sm text-gray-700">
-                  {deal.terms?.deliverables?.map(del => (
-                    <li key={del.id} className="flex items-center justify-between pb-2 border-b border-gray-50 last:border-0 last:pb-0">
-                      <span className="flex-1 font-medium">{del.description || del.type}</span>
-                      <span className="text-gray-500 bg-gray-50 px-2 py-0.5 rounded text-xs font-semibold">x{del.count}</span>
-                    </li>
+            <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-2 text-emerald-800 font-bold mb-4">
+                <Package size={18} className="text-emerald-600" />
+                Extracted Requirements
+              </div>
+              {deal.terms?.deliverables && deal.terms.deliverables.length > 0 ? (
+                <div className="space-y-3">
+                  {deal.terms.deliverables.map(del => (
+                    <div key={del.id} className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900">{del.description || del.type}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{del.type}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-emerald-700 text-lg">×{del.count}</div>
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 italic">No deliverables specified yet</div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-purple-100 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-2 text-purple-800 font-bold mb-4">
+                <DollarSign size={18} className="text-purple-600" />
+                Budget & Pricing Breakdown
               </div>
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-3 shadow-sm">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Budget & Timeline</div>
-                <div className="flex justify-between items-center text-gray-700">
-                  <span>Budget:</span>
-                  <span className="font-bold text-lg text-emerald-700">{formatCurrency(deal.terms?.proposedBudget)}</span>
-                </div>
-                <div className="flex justify-between items-center text-gray-600 text-sm">
-                  <span>Received:</span>
-                  <span>{formatDate(deal.timeline?.inquiryReceived)}</span>
-                </div>
-                <div className="flex justify-between items-center text-gray-600 text-sm">
-                  <span>Auto reply:</span>
-                  <span>{formatDate(deal.autoReplyAt)}</span>
-                </div>
+              <div className="space-y-4">
+                {deal.terms?.proposedBudget ? (
+                  <>
+                    <div className="bg-purple-50/50 rounded-lg p-4 border border-purple-100">
+                      <div className="text-xs text-gray-500 mb-1">Total Budget</div>
+                      <div className="font-bold text-2xl text-purple-900">{formatCurrency(deal.terms.proposedBudget)}</div>
+                    </div>
+                    {deal.terms.deliverables && deal.terms.deliverables.length > 0 && (() => {
+                      const totalUnits = deal.terms.deliverables.reduce((sum, d) => sum + (d.count || 1), 0)
+                      const perUnit = totalUnits > 0 ? Math.round(deal.terms.proposedBudget / totalUnits) : null
+                      return perUnit ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <div className="text-xs text-gray-500 mb-1">Total Units</div>
+                            <div className="font-semibold text-gray-900">{totalUnits}</div>
+                          </div>
+                          <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                            <div className="text-xs text-emerald-700 mb-1">Per-Unit Rate</div>
+                            <div className="font-bold text-emerald-900">{formatCurrency(perUnit)}</div>
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500 italic">Budget not specified</div>
+                )}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-3 shadow-sm">
-              <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">AI Confidence Analysis</div>
-              <div className="flex flex-wrap gap-2">
-                {deal.confidenceReasons?.map((reason, idx) => (
-                  <span
-                    key={idx}
-                    className="text-xs bg-gray-50 border border-gray-100 text-gray-600 rounded-full px-3 py-1 font-medium"
-                  >
-                    {reason}
-                  </span>
-                ))}
-              </div>
-              {deal.redFlags?.length ? (
-                <div className="flex items-start gap-2 text-rose-600 text-sm bg-rose-50 border border-rose-100 rounded-lg p-2.5 mt-2">
-                  <ShieldAlert size={16} className="mt-0.5 shrink-0" />
-                  <span className="font-medium">Red flags detected: {deal.redFlags.join(", ")}</span>
+            {deal.negotiation && (
+              <div className="rounded-2xl border border-amber-100 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-amber-800 font-bold mb-4">
+                  <TrendingUp size={18} className="text-amber-600" />
+                  Market Rates & AI Recommendations
                 </div>
-              ) : null}
-            </div>
+                <div className="space-y-4">
+                  <div className="bg-amber-50/50 rounded-lg p-4 border border-amber-100">
+                    <div className="text-xs text-gray-500 mb-1">Brand Offered</div>
+                    <div className="font-bold text-xl text-gray-900">{formatCurrency(deal.negotiation.brandOfferedAmount)}</div>
+                    <div className="mt-2">
+                      <span className="text-xs font-medium text-gray-600">Assessment: </span>
+                      <span
+                        className={cn(
+                          "text-xs font-bold uppercase px-2 py-0.5 rounded",
+                          deal.negotiation.budgetAssessment === "accept"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : deal.negotiation.budgetAssessment === "decline"
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-amber-100 text-amber-700"
+                        )}
+                      >
+                        {deal.negotiation.budgetAssessment}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-center">
+                      <div className="text-xs text-gray-500 mb-1">Conservative</div>
+                      <div className="font-semibold text-gray-900">{formatCurrency(deal.negotiation.aiRecommendedRates.conservative)}</div>
+                    </div>
+                    <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200 text-center shadow-sm">
+                      <div className="text-xs text-emerald-700 mb-1 font-bold">Market</div>
+                      <div className="font-bold text-emerald-900">{formatCurrency(deal.negotiation.aiRecommendedRates.market)}</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-center">
+                      <div className="text-xs text-gray-500 mb-1">Premium</div>
+                      <div className="font-semibold text-gray-900">{formatCurrency(deal.negotiation.aiRecommendedRates.premium)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {deal.history && deal.history.length > 0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-gray-800 font-bold mb-4">
+                  <Clock size={18} className="text-gray-600" />
+                  Negotiation History
+                </div>
+                <div className="space-y-4">
+                  {(() => {
+                    const filteredHistory = deal.history
+                      .filter(h => ['message_appended', 'creator_reply_sent', 'auto_reply_sent', 'deal_updated', 'deal_created'].includes(h.event))
+                      .slice(-10)
+                      .reverse()
+                    return filteredHistory.map((entry, idx) => {
+                      const date = new Date(entry.timestamp)
+                      const isUpdate = entry.event === 'message_appended' && (entry.data?.budgetChanged || entry.data?.deliverablesChanged)
+                      return (
+                        <div key={idx} className={cn(
+                          "relative pl-8 pb-4 border-l-2",
+                          isUpdate ? "border-emerald-300" : "border-gray-200"
+                        )}>
+                          <div className={cn(
+                            "absolute left-[-6px] top-0 w-3 h-3 rounded-full border-2",
+                            isUpdate ? "bg-emerald-100 border-emerald-400" : "bg-white border-gray-300"
+                          )} />
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={cn(
+                                  "text-xs font-semibold uppercase px-2 py-0.5 rounded",
+                                  isUpdate ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
+                                )}>
+                                  {entry.event.replace('_', ' ')}
+                                </span>
+                                {isUpdate && (
+                                  <span className="text-xs text-emerald-600 font-medium">• Context Updated</span>
+                                )}
+                              </div>
+                              {entry.data?.newMessage && (
+                                <div className="text-sm text-gray-700 mt-2 bg-gray-50 rounded p-2 border border-gray-100">
+                                  {entry.data.newMessage.substring(0, 150)}{entry.data.newMessage.length > 150 ? '...' : ''}
+                                </div>
+                              )}
+                              {entry.data?.budgetChanged && (
+                                <div className="text-xs text-gray-600 mt-2">
+                                  <span className="font-medium">Budget:</span> {formatCurrency(entry.data.previousBudget)} → {formatCurrency(entry.data.updatedBudget)}
+                                </div>
+                              )}
+                              {entry.data?.deliverablesChanged && entry.data.updatedDeliverables && (
+                                <div className="text-xs text-gray-600 mt-1">
+                                  <span className="font-medium">Deliverables updated:</span> {entry.data.updatedDeliverables.map((d: any) => `${d.count}x ${d.type || d.description}`).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-400 ml-4">
+                              {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {(deal.confidenceReasons?.length || deal.redFlags?.length) && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-3 shadow-sm">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">AI Confidence Analysis</div>
+                {deal.confidenceReasons && deal.confidenceReasons.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {deal.confidenceReasons.map((reason, idx) => (
+                      <span
+                        key={idx}
+                        className="text-xs bg-gray-50 border border-gray-100 text-gray-600 rounded-full px-3 py-1 font-medium"
+                      >
+                        {reason}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {deal.redFlags && deal.redFlags.length > 0 && (
+                  <div className="flex items-start gap-2 text-rose-600 text-sm bg-rose-50 border border-rose-100 rounded-lg p-2.5 mt-2">
+                    <ShieldAlert size={16} className="mt-0.5 shrink-0" />
+                    <span className="font-medium">Red flags detected: {deal.redFlags.join(", ")}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -345,15 +501,19 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
             ) : (
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/30 p-5 shadow-sm">
                 <div className="flex items-center gap-2 text-emerald-800 font-bold mb-3">
-                  <Sparkles size={18} className="text-emerald-500" /> AI-Suggested Reply
+                  <Sparkles size={18} className="text-emerald-500" /> Smart Reply Generator
+                </div>
+                <div className="mb-2 text-xs text-gray-600 bg-white/60 rounded-lg p-2 border border-emerald-100">
+                  💡 <strong>How it works:</strong> Type your instruction or edit the AI-generated message. AI will create a professional reply based on your input and deal context.
                 </div>
                 <textarea
                   value={reply}
                   onChange={e => setReply(e.target.value)}
+                  placeholder="Type your instruction or edit the message. AI will generate the final professional reply..."
                   className="w-full min-h-48 rounded-xl bg-white border border-emerald-100 text-sm text-gray-800 p-4 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300 transition-all shadow-sm resize-none"
                 />
                 <div className="flex items-center gap-2 text-xs text-gray-500 mt-3 px-1">
-                  Preview before sending. Status will update automatically.
+                  AI will generate the final message sent to the brand. Status will update automatically.
                 </div>
                 <button
                   disabled={loading}

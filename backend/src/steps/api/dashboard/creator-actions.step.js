@@ -1,6 +1,5 @@
 import { generateProposalWithFallback } from '../../../lib/agents/generateProposal.js'
 import { sendMessageWithRetry, validateFacebookCredentials } from '../../../lib/integrations/facebookMessenger.js'
-import { DECLINE_TEMPLATE, HIGH_CONFIDENCE_TEMPLATE, personalizeMessage } from '../../../lib/replies/autoReplyTemplates.js'
 
 export const config = {
     type: 'api',
@@ -142,18 +141,13 @@ export const handler = async (req, ctx) => {
                 preferredDeliverables: ['instagram_reel', 'youtube_video']
             }
 
-            // Generate proposal with AI, fallback to template
-            const fallbackTemplate = personalizeMessage(
-                HIGH_CONFIDENCE_TEMPLATE,
-                deal.brand?.contactPerson,
-                deal.brand?.name
-            )
-
+            // Generate proposal with AI (context-aware)
             messageToSend = await generateProposalWithFallback(
                 deal,
                 creatorProfile,
-                fallbackTemplate,
-                ctx.logger
+                `Hi ${deal.brand?.contactPerson || deal.brand?.name || 'there'}, thank you for reaching out! I'll get back to you soon.`,
+                ctx.logger,
+                { action: 'send_proposal' }
             )
 
             newStatus = 'awaiting_response'
@@ -168,12 +162,22 @@ export const handler = async (req, ctx) => {
             newStatus = 'awaiting_response'
 
         } else if (action === 'decline') {
-            ctx.logger.info('Sending decline message', { dealId })
+            ctx.logger.info('Generating AI decline message', { dealId })
 
-            messageToSend = personalizeMessage(
-                DECLINE_TEMPLATE,
-                deal.brand?.contactPerson,
-                deal.brand?.name
+            const creatorProfile = {
+                id: 'default-creator',
+                minRate: 15000,
+                maxRate: 50000,
+                preferredDeliverables: ['instagram_reel', 'youtube_video']
+            }
+
+            // Generate context-aware decline message using AI
+            messageToSend = await generateProposalWithFallback(
+                deal,
+                creatorProfile,
+                `Hi ${deal.brand?.contactPerson || deal.brand?.name || 'there'}, thank you so much for considering me for this collaboration! I really appreciate you reaching out. Unfortunately, I'm unable to take on this project at the moment due to my current commitments. I wish you all the best with your campaign, and I hope we can work together in the future!`,
+                ctx.logger,
+                { action: 'decline' }
             )
 
             newStatus = 'declined'
