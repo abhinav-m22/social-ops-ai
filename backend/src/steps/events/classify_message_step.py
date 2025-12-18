@@ -40,7 +40,7 @@ async def handler(input_data, context):
     Output: Emits message.classified with { isBrandInquiry, confidence, reasoning }
     """
     message_id = input_data.get("messageId")
-    body = input_data.get("body")
+    body = input_data.get("html")
     source = input_data.get("source")
     subject = input_data.get("subject", "")
     
@@ -134,22 +134,32 @@ CRITICAL: Return ONLY the JSON object. No markdown, no explanations."""
             context.logger.info("=" * 80)
             
             # Emit classification result
+            emit_data = {
+                "messageId": message_id,
+                "source": source,
+                "body": body,
+                "subject": subject,
+                "senderId": input_data.get("senderId"),
+                "sender": sender, # Pass enriched sender info
+                "pageName": input_data.get("pageName"),
+                "isBrandInquiry": is_brand_inquiry,
+                "confidence": confidence,
+                "reasoning": reasoning,
+                "keywords": keywords,
+                "classifiedAt": datetime.datetime.now().isoformat()
+            }
+            # Pass through email threading metadata if available
+            if source == "email":
+                if input_data.get("inReplyTo"):
+                    emit_data["inReplyTo"] = input_data.get("inReplyTo")
+                if input_data.get("references"):
+                    emit_data["references"] = input_data.get("references")
+                if input_data.get("emailHeaders"):
+                    emit_data["emailHeaders"] = input_data.get("emailHeaders")
+            
             await context.emit({
                 "topic": "message.classified",
-                "data": {
-                    "messageId": message_id,
-                    "source": source,
-                    "body": body,
-                    "subject": subject,
-                    "senderId": input_data.get("senderId"),
-                    "sender": sender, # Pass enriched sender info
-                    "pageName": input_data.get("pageName"),
-                    "isBrandInquiry": is_brand_inquiry,
-                    "confidence": confidence,
-                    "reasoning": reasoning,
-                    "keywords": keywords,
-                    "classifiedAt": datetime.datetime.now().isoformat()
-                }
+                "data": emit_data
             })
             
             context.logger.info(f"✅ Classification event emitted for {message_id}")
@@ -161,22 +171,32 @@ CRITICAL: Return ONLY the JSON object. No markdown, no explanations."""
             context.logger.error(f"Error: {str(json_err)}")
             context.logger.error("=" * 80)
             # Default to NOT brand inquiry if parsing fails
+            emit_data = {
+                "messageId": message_id,
+                "source": source,
+                "body": body,
+                "subject": subject,
+                "senderId": input_data.get("senderId"),
+                "sender": sender,
+                "pageName": input_data.get("pageName"),
+                "isBrandInquiry": False,
+                "confidence": 0.0,
+                "reasoning": f"Classification failed: {str(json_err)}",
+                "keywords": [],
+                "classifiedAt": datetime.datetime.now().isoformat()
+            }
+            # Pass through email threading metadata if available
+            if source == "email":
+                if input_data.get("inReplyTo"):
+                    emit_data["inReplyTo"] = input_data.get("inReplyTo")
+                if input_data.get("references"):
+                    emit_data["references"] = input_data.get("references")
+                if input_data.get("emailHeaders"):
+                    emit_data["emailHeaders"] = input_data.get("emailHeaders")
+            
             await context.emit({
                 "topic": "message.classified",
-                "data": {
-                    "messageId": message_id,
-                    "source": source,
-                    "body": body,
-                    "subject": subject,
-                    "senderId": input_data.get("senderId"),
-                    "sender": sender,
-                    "pageName": input_data.get("pageName"),
-                    "isBrandInquiry": False,
-                    "confidence": 0.0,
-                    "reasoning": f"Classification failed: {str(json_err)}",
-                    "keywords": [],
-                    "classifiedAt": datetime.datetime.now().isoformat()
-                }
+                "data": emit_data
             })
             
     except Exception as e:
@@ -187,21 +207,31 @@ CRITICAL: Return ONLY the JSON object. No markdown, no explanations."""
         context.logger.error("=" * 80)
         
         # Emit with default (not brand inquiry) on error
+        emit_data = {
+            "messageId": message_id,
+            "source": source,
+            "body": body,
+            "subject": subject,
+            "senderId": input_data.get("senderId"),
+            "sender": sender,
+            "pageName": input_data.get("pageName"),
+            "isBrandInquiry": False,
+            "confidence": 0.0,
+            "reasoning": f"Classification error: {str(e)}",
+            "keywords": [],
+            "classifiedAt": datetime.datetime.now().isoformat()
+        }
+        # Pass through email threading metadata if available
+        if source == "email":
+            if input_data.get("inReplyTo"):
+                emit_data["inReplyTo"] = input_data.get("inReplyTo")
+            if input_data.get("references"):
+                emit_data["references"] = input_data.get("references")
+            if input_data.get("emailHeaders"):
+                emit_data["emailHeaders"] = input_data.get("emailHeaders")
+        
         await context.emit({
             "topic": "message.classified",
-            "data": {
-                "messageId": message_id,
-                "source": source,
-                "body": body,
-                "subject": subject,
-                "senderId": input_data.get("senderId"),
-                "sender": sender,
-                "pageName": input_data.get("pageName"),
-                "isBrandInquiry": False,
-                "confidence": 0.0,
-                "reasoning": f"Classification error: {str(e)}",
-                "keywords": [],
-                "classifiedAt": datetime.datetime.now().isoformat()
-            }
+            "data": emit_data
         })
 

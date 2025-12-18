@@ -1,4 +1,6 @@
 // Event handler: Stores inquiry only if classified as brand collaboration
+import { extractTextSafely } from '../../lib/utils/htmlExtractor.js'
+
 export const config = {
     type: 'event',
     name: 'StoreInquiry',
@@ -37,7 +39,10 @@ export const handler = async (input, ctx) => {
         confidence,
         reasoning,
         keywords,
-        classifiedAt
+        classifiedAt,
+        inReplyTo,
+        references,
+        emailHeaders
     } = input
 
     ctx.logger.info('='.repeat(80))
@@ -62,6 +67,16 @@ export const handler = async (input, ctx) => {
     const threadKey = `${source || 'unknown'}:${senderId || 'unknown'}`
 
     try {
+        // Extract clean text from body (handles HTML if present)
+        const cleanBody = extractTextSafely(body)
+        
+        ctx.logger.info('Storing inquiry with cleaned body', {
+            originalLength: body?.length || 0,
+            cleanedLength: cleanBody.length,
+            hadHtml: body?.includes('<') || body?.includes('&'),
+            traceId: ctx.traceId
+        })
+
         // Store inquiry in state
         const inquiry = {
             id: inquiryId,
@@ -70,7 +85,7 @@ export const handler = async (input, ctx) => {
             senderId: senderId || null,
             sender: sender || null, // Store Enriched Sender Object
             pageName: input.pageName || null,
-            body: body,
+            body: cleanBody, // Store clean text, not HTML
             subject: subject || null,
             receivedAt: new Date().toISOString(),
             status: 'new',
@@ -85,10 +100,20 @@ export const handler = async (input, ctx) => {
             raw: {
                 messageId,
                 source,
-                body,
+                body: body, // Keep original HTML in raw for reference
                 subject,
-                senderId
-            }
+                senderId,
+                // Email threading metadata
+                ...(source === 'email' && {
+                    inReplyTo: inReplyTo || null,
+                    references: references || null,
+                    emailHeaders: emailHeaders || null
+                })
+            },
+            ...(source === 'email' && {
+                inReplyTo: inReplyTo || null,
+                references: references || null
+            })
         }
 
         await ctx.state.set('inquiries', inquiryId, inquiry)
@@ -104,12 +129,13 @@ export const handler = async (input, ctx) => {
         })
 
         // Emit inquiry.received for downstream processing (extraction)
+        // Pass clean body (not HTML) to downstream steps
         await ctx.emit({
             topic: 'inquiry.received',
             data: {
                 inquiryId: inquiryId,
                 source: source,
-                body: body,
+                body: cleanBody, // Pass clean text, not HTML
                 senderId: senderId,
                 sender: sender, // Pass it down
                 threadKey
