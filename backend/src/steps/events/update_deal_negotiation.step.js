@@ -9,16 +9,31 @@ export const config = {
 }
 
 export const handler = async (input, ctx) => {
-    const { dealId, payload, brandDetails } = input
+    const { dealId: inputDealId, inquiryId, payload, brandDetails } = input
 
-    if (!dealId || !payload || !payload.success || !payload.recommendation) {
-        ctx.logger.warn('UpdateDealNegotiation: missing required data', { dealId, success: payload?.success })
+    if (!payload || !payload.success || !payload.recommendation) {
+        ctx.logger.warn('UpdateDealNegotiation: missing required data', { dealId: inputDealId, inquiryId, success: payload?.success })
         return
     }
 
-    const deal = await ctx.state.get('deals', dealId)
-    if (!deal) {
-        ctx.logger.error(`UpdateDealNegotiation: deal ${dealId} not found`)
+    let deal = null
+    let dealId = inputDealId
+
+    if (dealId) {
+        deal = await ctx.state.get('deals', dealId)
+    }
+
+    if (!deal && inquiryId) {
+        const allDeals = await ctx.state.getGroup('deals')
+        deal = (allDeals || []).find(d => d.inquiryId === inquiryId && !['completed', 'cancelled', 'declined'].includes((d.status || '').toLowerCase()))
+        if (deal) {
+            dealId = deal.dealId
+            ctx.logger.info('UpdateDealNegotiation: Found deal by inquiryId', { inquiryId, dealId })
+        }
+    }
+
+    if (!deal || !dealId) {
+        ctx.logger.error(`UpdateDealNegotiation: deal not found`, { dealId: inputDealId, inquiryId })
         return
     }
 

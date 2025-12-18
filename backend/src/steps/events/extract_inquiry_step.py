@@ -143,15 +143,20 @@ CRITICAL: Return ONLY the JSON object. No markdown code blocks, no explanations.
             context.logger.error(f"Inquiry {inquiry_id} not found in state")
             inquiry = {"id": inquiry_id}
         
+        original_body = inquiry.get("body", body)
+        
         inquiry["status"] = "extracted"
         inquiry["extractedData"] = extracted
         inquiry["extractedAt"] = datetime.datetime.now().isoformat()
+        inquiry["body"] = original_body  # Explicitly preserve body
         
         # Ensure sender is preserved or added if missing in state
         if sender and not inquiry.get("sender"):
              inquiry["sender"] = sender
 
         await context.state.set("inquiries", inquiry_id, inquiry)
+        
+        context.logger.info(f"Inquiry updated with body preserved: hasBody={bool(inquiry.get('body'))}, bodyLength={len(inquiry.get('body', ''))}")
         
         context.logger.info(f"✅ Inquiry updated in state: {inquiry_id}")
         

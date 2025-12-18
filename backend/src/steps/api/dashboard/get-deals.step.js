@@ -61,6 +61,18 @@ export const handler = async (req, ctx) => {
             traceId: ctx.traceId
         })
 
+        if (deals.length > 0) {
+            ctx.logger.info('First deal message data:', {
+                dealId: deals[0].dealId,
+                hasMessage: !!deals[0].message,
+                messageLength: deals[0].message?.length || 0,
+                messagePreview: deals[0].message?.substring(0, 100) || 'NO MESSAGE',
+                hasRawInquiry: !!deals[0].rawInquiry,
+                rawInquiryLength: deals[0].rawInquiry?.length || 0,
+                rawInquiryPreview: deals[0].rawInquiry?.substring(0, 100) || 'NO RAW INQUIRY'
+            })
+        }
+
         return {
             status: 200,
             body: {

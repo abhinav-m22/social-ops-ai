@@ -49,7 +49,10 @@ export const handler = async (input, ctx) => {
         ctx.logger.info('Fetched original inquiry', {
             inquiryId,
             status: inquiry.status,
-            hasExtractedData: !!inquiry.extractedData
+            hasExtractedData: !!inquiry.extractedData,
+            hasBody: !!inquiry.body,
+            bodyLength: inquiry.body?.length || 0,
+            bodyPreview: inquiry.body?.substring(0, 100) || 'NO BODY'
         })
 
         const senderName = sender?.name || inquiry.sender?.name
@@ -141,8 +144,8 @@ export const handler = async (input, ctx) => {
             const updatedDeal = {
                 ...existingDeal,
                 inquiryId,
-                message: inquiry.body || existingDeal.message, 
-                rawInquiry: inquiry.body, 
+                message: inquiry.body || inquiry.raw?.body || existingDeal.message || '', 
+                rawInquiry: inquiry.body || inquiry.raw?.body || existingDeal.rawInquiry || '', 
                 extractedData: extracted, 
                 terms: {
                     ...existingDeal.terms,
@@ -179,6 +182,15 @@ export const handler = async (input, ctx) => {
             }
 
             await ctx.state.set('deals', dealId, updatedDeal)
+
+            ctx.logger.info('Updated deal with new inquiry data', {
+                dealId,
+                hasMessage: !!updatedDeal.message,
+                messageLength: updatedDeal.message?.length || 0,
+                messagePreview: updatedDeal.message?.substring(0, 100) || 'NO MESSAGE',
+                hasRawInquiry: !!updatedDeal.rawInquiry,
+                rawInquiryLength: updatedDeal.rawInquiry?.length || 0
+            })
 
             inquiry.dealId = dealId
             inquiry.threadKey = threadKey
@@ -293,7 +305,7 @@ export const handler = async (input, ctx) => {
                 platformAccountId: sender?.id || inquiry?.senderId || null
             },
 
-            message: inquiry.body,
+            message: inquiry.body || inquiry.raw?.body || '',
 
             confidenceScore: confidence.score,
             confidenceLevel: confidence.level,
@@ -330,7 +342,7 @@ export const handler = async (input, ctx) => {
 
             extractedData: extracted,
             source: source,
-            rawInquiry: inquiry.body
+            rawInquiry: inquiry.body || inquiry.raw?.body || ''
         }
 
         if (confidence.level === 'high') {
@@ -389,7 +401,11 @@ export const handler = async (input, ctx) => {
             dealId,
             brandName: deal.brand.name,
             status: deal.status,
-            deliverablesCount: deal.terms.deliverables.length
+            deliverablesCount: deal.terms.deliverables.length,
+            hasMessage: !!deal.message,
+            messageLength: deal.message?.length || 0,
+            hasRawInquiry: !!deal.rawInquiry,
+            rawInquiryLength: deal.rawInquiry?.length || 0
         })
 
         inquiry.dealId = dealId

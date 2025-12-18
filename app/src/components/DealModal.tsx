@@ -120,12 +120,14 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
               </div>
               <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base bg-white rounded-lg p-4 border border-blue-100">
                 {(() => {
-                  if (deal.message) return deal.message
-                  if (deal.rawInquiry) return deal.rawInquiry
-                  const latestMessageEntry = deal.history
+                  if (deal.rawInquiry && deal.rawInquiry.trim()) return deal.rawInquiry
+                  const latestBrandMessageEntry = deal.history
                     ?.filter(h => h.event === 'message_appended' && h.data?.newMessage)
                     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-                  if (latestMessageEntry?.data?.newMessage) return latestMessageEntry.data.newMessage
+                  if (latestBrandMessageEntry?.data?.newMessage) return latestBrandMessageEntry.data.newMessage
+                  if (deal.message && deal.message.trim() && deal.message !== deal.autoReplyMessage && deal.message !== deal.aiSuggestedReply) {
+                    return deal.message
+                  }
                   return "No message available"
                 })()}
               </p>

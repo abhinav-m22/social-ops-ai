@@ -97,7 +97,10 @@ export const handler = async (input, ctx) => {
             inquiryId,
             source,
             confidence: `${(confidence * 100).toFixed(1)}%`,
-            senderName: sender?.name
+            senderName: sender?.name,
+            hasBody: !!inquiry.body,
+            bodyLength: inquiry.body?.length || 0,
+            bodyPreview: inquiry.body?.substring(0, 100) || 'NO BODY SAVED'
         })
 
         // Emit inquiry.received for downstream processing (extraction)
