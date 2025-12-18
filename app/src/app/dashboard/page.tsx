@@ -6,7 +6,8 @@ import { fetchDeals, sendSmartReply, updateDeal } from "@/lib/api"
 import { DealCard } from "@/components/DealCard"
 import { DealModal } from "@/components/DealModal"
 import { NotificationBell, NotificationItem } from "@/components/NotificationBell"
-import { Sparkles, Loader2, Plus } from "lucide-react"
+import { Sparkles, Loader2, Plus, User } from "lucide-react"
+import Link from "next/link"
 import toast from "react-hot-toast"
 
 const DashboardPage = () => {
@@ -105,6 +106,12 @@ const DashboardPage = () => {
           <p className="text-gray-500 mt-1 text-lg">Manage brand deals, automate replies, and track your revenue.</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            href="/creator/profile"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white text-gray-700 px-5 py-2.5 text-sm font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+          >
+            <User size={18} /> Profile
+          </Link>
           <NotificationBell items={notifications} onClear={() => setNotifications([])} />
           <button className="inline-flex items-center gap-2 rounded-xl bg-gray-900 text-white px-5 py-2.5 text-sm font-medium shadow-lg shadow-gray-900/10 hover:shadow-xl hover:-translate-y-0.5 transition-all">
             <Plus size={18} /> Add Deal

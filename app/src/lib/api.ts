@@ -5,7 +5,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000"
 const handle = async <T>(res: Response) => {
   if (!res.ok) {
     const msg = await res.text()
-    throw new Error(msg || `Request failed (${res.status})`)
+    const error = new Error(msg || `Request failed (${res.status})`)
+    ;(error as any).status = res.status
+    throw error
   }
   return (await res.json()) as T
 }
@@ -51,5 +53,49 @@ export const submitNegotiationAction = async (
     }),
   })
   return handle<{ deal: Deal }>(res)
+}
+
+export const fetchCreatorProfile = async (creatorId: string) => {
+  const res = await fetch(`${API_BASE}/api/creator/profile?creatorId=${encodeURIComponent(creatorId)}`, {
+    cache: "no-store",
+  })
+  const data = await handle<{ exists: boolean; profile?: any }>(res)
+  return data.exists ? data.profile : null
+}
+
+export const createOrUpdateCreatorProfile = async (data: any) => {
+  const res = await fetch(`${API_BASE}/api/creator/profile`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+  return handle<{ success: boolean; profile: any }>(res)
+}
+
+// Invoice API functions
+export const fetchInvoiceByDealId = async (dealId: string) => {
+  try {
+    const res = await fetch(`${API_BASE}/api/invoice/by-deal/${encodeURIComponent(dealId)}`, {
+      cache: "no-store",
+    })
+    if (res.status === 404) {
+      return null // Invoice doesn't exist yet
+    }
+    const data = await handle<{ success: boolean; invoice?: any }>(res)
+    return data.invoice || null
+  } catch (error: any) {
+    if (error.status === 404) {
+      return null // Invoice doesn't exist yet
+    }
+    throw error
+  }
+}
+
+export const sendInvoiceEmail = async (invoiceId: string) => {
+  const res = await fetch(`${API_BASE}/api/invoice/${invoiceId}/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  })
+  return handle<{ success: boolean; message: string; emailId?: string; invoice: any }>(res)
 }
 

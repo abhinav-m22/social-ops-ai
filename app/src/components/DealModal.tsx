@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Deal } from "@/types/deal"
+import { InvoicePanel } from "./InvoicePanel"
 import { formatCurrency, formatDate, cn } from "@/lib/ui"
 import { ConfidenceBadge } from "./ConfidenceBadge"
 import { StatusBadge } from "./StatusBadge"
@@ -327,6 +328,17 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
           </div>
 
           <div className="space-y-6">
+            {/* Invoice Panel - Show for active deals */}
+            {deal.status === "active" && (
+              <InvoicePanel 
+                dealId={deal.dealId}
+                onInvoiceUpdate={(invoice) => {
+                  // Optional: handle invoice updates
+                  console.log("Invoice updated:", invoice)
+                }}
+              />
+            )}
+
             {isNegotiationMode && deal.negotiation ? (
               <div className="space-y-6">
                 {/* Negotiation UI */}
