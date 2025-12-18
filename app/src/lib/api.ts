@@ -53,3 +53,20 @@ export const submitNegotiationAction = async (
   return handle<{ deal: Deal }>(res)
 }
 
+export const fetchCreatorProfile = async (creatorId: string) => {
+  const res = await fetch(`${API_BASE}/api/creator/profile?creatorId=${encodeURIComponent(creatorId)}`, {
+    cache: "no-store",
+  })
+  const data = await handle<{ exists: boolean; profile?: any }>(res)
+  return data.exists ? data.profile : null
+}
+
+export const createOrUpdateCreatorProfile = async (data: any) => {
+  const res = await fetch(`${API_BASE}/api/creator/profile`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+  return handle<{ success: boolean; profile: any }>(res)
+}
+
