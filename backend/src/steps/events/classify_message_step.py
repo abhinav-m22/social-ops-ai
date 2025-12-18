@@ -17,13 +17,13 @@ config = {
             "sender": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
+                    "name": {"type": ["string", "null"]},
                     "platform": {"type": "string"},
                     "id": {"type": "string"}
                 }
             },
-            "subject": {"type": "string"},  # For emails
-            "pageName": {"type": "string"}  # For facebook page attribution
+            "subject": {"type": ["string", "null"]},  # For emails (optional)
+            "pageName": {"type": ["string", "null"]}  # For facebook page attribution
         },
         "required": ["messageId", "source", "body"]
     },
@@ -40,9 +40,9 @@ async def handler(input_data, context):
     Output: Emits message.classified with { isBrandInquiry, confidence, reasoning }
     """
     message_id = input_data.get("messageId")
-    body = input_data.get("html")
+    body = input_data.get("body") or input_data.get("html", "")
     source = input_data.get("source")
-    subject = input_data.get("subject", "")
+    subject = input_data.get("subject") or ""
     
     # Use enriched sender info if available
     sender = input_data.get("sender", {})
@@ -54,7 +54,7 @@ async def handler(input_data, context):
     context.logger.info(f"Source: {source}")
     context.logger.info(f"Sender: {sender_name or input_data.get('senderId')}")
     context.logger.info(f"Subject: {subject}")
-    context.logger.info(f"Body Preview: {body[:100]}...")
+    context.logger.info(f"Body Preview: {body[:100] if body else 'NO BODY'}...")
     
     if not body:
         context.logger.warn(f"No message body for {message_id}")

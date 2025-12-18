@@ -3,7 +3,7 @@ export const config = {
     type: 'event',
     name: 'CreatorDecisionBridge',
     subscribes: ['deal.updated'],
-    emits: ['CreatorDecisionSubmitted', 'DealFinalized'],
+    emits: ['CreatorDecisionSubmitted', 'DealFinalized', 'deal.accepted'],
     description: 'Emits canonical creator decision and finalization events from deal updates',
     flows: ['negotiation', 'dealflow']
 }
@@ -36,6 +36,17 @@ export const handler = async (input, ctx) => {
                 decisionType: newStatus === 'declined' ? 'reject' : newStatus === 'active' ? 'accept' : 'counter',
                 previousStatus,
                 newStatus
+            }
+        })
+    }
+
+    // Emit deal.accepted when deal becomes active (for invoice creation)
+    if (newStatus === 'active' && previousStatus !== 'active') {
+        await ctx.emit({
+            topic: 'deal.accepted',
+            data: {
+                dealId,
+                creatorId
             }
         })
     }

@@ -106,3 +106,4 @@ export function extractTextSafely(content) {
     return content.trim()
 }
 
+
