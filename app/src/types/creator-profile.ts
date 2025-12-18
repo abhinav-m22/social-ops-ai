@@ -46,3 +46,4 @@ export interface CreateOrUpdateProfileRequest {
   lateFeePercent?: number
 }
 
+
