@@ -1,5 +1,5 @@
 import { generateProposalWithFallback } from '../../../lib/agents/generateProposal.js'
-import { sendMessageWithRetry, validateFacebookCredentials } from '../../../lib/integrations/facebookMessenger.js'
+import { sendReply, validatePlatformCredentials } from '../../../lib/integrations/replyAdapters.js'
 
 export const config = {
     type: 'api',
@@ -7,7 +7,7 @@ export const config = {
     path: '/api/deals/:dealId/actions/reply',
     method: 'POST',
     emits: ['deal.reply_sent', 'deal.declined'],
-    description: 'Handles creator actions: send proposal, edit & send, or decline brand inquiries with Facebook Messenger integration',
+    description: 'Handles creator actions: send proposal, edit & send, or decline brand inquiries (Facebook Messenger or Email)',
     flows: ['dashboard', 'dealflow']
 }
 
@@ -77,50 +77,39 @@ export const handler = async (req, ctx) => {
             }
         }
 
-        // Validate Facebook credentials
-        const fbValidation = validateFacebookCredentials()
-        if (!fbValidation.valid) {
-            ctx.logger.error('Facebook credentials missing', {
-                error: fbValidation.error
+        const platform = deal.platform || 'facebook'
+
+        // Validate platform credentials
+        const platformValidation = validatePlatformCredentials(platform)
+        if (!platformValidation.valid) {
+            ctx.logger.error(`${platform} credentials missing`, {
+                error: platformValidation.error
             })
             return {
                 status: 500,
                 body: {
                     success: false,
-                    error: 'Facebook integration not configured properly'
+                    error: `${platform} integration not configured properly: ${platformValidation.error}`
                 }
             }
         }
 
-        const pageAccessToken = fbValidation.token
-
-        // Extract recipient PSID
-        const recipientPsid = deal.brand?.platformAccountId || deal.brand?.senderId
-        if (!recipientPsid) {
-            ctx.logger.error('Recipient PSID not found in deal', {
+        // Validate recipient information exists
+        const recipientId = platform === 'email' 
+            ? (deal.brand?.email || deal.brand?.platformAccountId)
+            : (deal.brand?.platformAccountId || deal.brand?.senderId)
+        
+        if (!recipientId) {
+            ctx.logger.error(`Recipient ${platform === 'email' ? 'email' : 'PSID'} not found in deal`, {
                 dealId,
+                platform,
                 brandData: deal.brand
             })
             return {
                 status: 400,
                 body: {
                     success: false,
-                    error: 'Cannot send message: recipient information missing from deal'
-                }
-            }
-        }
-
-        // Validate platform is Facebook
-        if (deal.platform && deal.platform !== 'facebook') {
-            ctx.logger.error('Deal is not from Facebook platform', {
-                dealId,
-                platform: deal.platform
-            })
-            return {
-                status: 400,
-                body: {
-                    success: false,
-                    error: `This feature only supports Facebook messages. Deal platform: ${deal.platform}`
+                    error: `Cannot send message: recipient information missing from deal (platform: ${platform})`
                 }
             }
         }
@@ -183,42 +172,52 @@ export const handler = async (req, ctx) => {
             newStatus = 'declined'
         }
 
-        // Send message to Facebook
-        ctx.logger.info('Sending message to Facebook Messenger', {
+        // Send message using platform adapter
+        ctx.logger.info(`Sending message via ${platform}`, {
             dealId,
-            recipientPsid,
+            recipientId,
             action,
             messageLength: messageToSend.length
         })
 
-        let fbResponse
+        let replyResponse
         try {
-            fbResponse = await sendMessageWithRetry(
-                recipientPsid,
+            // Prepare email-specific options if needed
+            const replyOptions = {}
+            if (platform === 'email') {
+                // Preserve email threading if available
+                replyOptions.inReplyTo = deal.brand?.lastEmailId || null
+                replyOptions.references = deal.brand?.emailReferences || null
+            }
+
+            replyResponse = await sendReply(
+                platform,
+                deal,
                 messageToSend,
-                pageAccessToken,
-                ctx.logger,
-                2 // maxRetries
+                replyOptions,
+                ctx.logger
             )
 
-            ctx.logger.info('✅ Message successfully sent to Facebook', {
+            ctx.logger.info(`✅ Message successfully sent via ${platform}`, {
                 dealId,
-                messageId: fbResponse.messageId,
-                action
+                messageId: replyResponse.messageId || replyResponse.emailId,
+                action,
+                platform
             })
 
-        } catch (fbError) {
-            ctx.logger.error('❌ Failed to send message to Facebook', {
+        } catch (replyError) {
+            ctx.logger.error(`❌ Failed to send message via ${platform}`, {
                 dealId,
-                error: fbError.message,
-                stack: fbError.stack
+                error: replyError.message,
+                stack: replyError.stack,
+                platform
             })
 
             return {
                 status: 500,
                 body: {
                     success: false,
-                    error: `Failed to send message to Facebook: ${fbError.message}`
+                    error: `Failed to send message via ${platform}: ${replyError.message}`
                 }
             }
         }
@@ -239,7 +238,10 @@ export const handler = async (req, ctx) => {
                     data: {
                         action,
                         message: messageToSend,
-                        facebookMessageId: fbResponse.messageId,
+                        platform: platform,
+                        messageId: replyResponse.messageId || replyResponse.emailId,
+                        ...(platform === 'facebook' ? { facebookMessageId: replyResponse.messageId } : {}),
+                        ...(platform === 'email' ? { emailId: replyResponse.emailId, subject: replyResponse.subject } : {}),
                         sentFrom: 'dashboard_creator_action'
                     }
                 }
@@ -264,7 +266,10 @@ export const handler = async (req, ctx) => {
                 action,
                 brand: deal.brand,
                 message: messageToSend,
-                facebookMessageId: fbResponse.messageId
+                platform: platform,
+                messageId: replyResponse.messageId || replyResponse.emailId,
+                ...(platform === 'facebook' ? { facebookMessageId: replyResponse.messageId } : {}),
+                ...(platform === 'email' ? { emailId: replyResponse.emailId } : {})
             }
         })
 
@@ -282,7 +287,10 @@ export const handler = async (req, ctx) => {
                 messageSent: {
                     action,
                     message: messageToSend,
-                    facebookMessageId: fbResponse.messageId,
+                    platform: platform,
+                    messageId: replyResponse.messageId || replyResponse.emailId,
+                    ...(platform === 'facebook' ? { facebookMessageId: replyResponse.messageId } : {}),
+                    ...(platform === 'email' ? { emailId: replyResponse.emailId, subject: replyResponse.subject } : {}),
                     sentAt: timestamp
                 }
             }

@@ -62,6 +62,18 @@ export const handler = async (input, ctx) => {
             inquirySender: !!inquiry.sender
         })
 
+        // Normalize email subject for matching (remove Re:, Fwd:, etc.)
+        const normalizeSubject = (subject) => {
+            if (!subject) return ''
+            return subject
+                .replace(/^(re|fwd|fwd?):\s*/i, '')
+                .replace(/\[.*?\]/g, '')
+                .trim()
+        }
+
+        const emailSubject = inquiry.subject || null
+        const normalizedSubject = source === 'email' && emailSubject ? normalizeSubject(emailSubject) : null
+
         const creatorProfile = {
             id: 'default-creator',
             interests: ['tech', 'gadgets', 'reviews'],
@@ -72,11 +84,38 @@ export const handler = async (input, ctx) => {
         }
 
         const allDeals = await ctx.state.getGroup('deals')
+
         let existingDeal = (allDeals || []).find(
             (d) =>
                 d.threadKey === threadKey &&
                 !['completed', 'cancelled', 'declined'].includes((d.status || '').toLowerCase())
         )
+
+        if (!existingDeal && source === 'email' && sender?.id && normalizedSubject) {
+            const thirtyDaysAgo = new Date()
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+            
+            existingDeal = (allDeals || []).find((d) => {
+                if (d.platform !== 'email') return false
+                if (['completed', 'cancelled', 'declined'].includes((d.status || '').toLowerCase())) return false
+                if (d.brandId !== sender.id) return false
+                
+                const dealCreated = new Date(d.timeline?.dealCreated || d.timeline?.inquiryReceived || 0)
+                if (dealCreated < thirtyDaysAgo) return false
+                
+                const dealSubject = d.brand?.emailSubject || ''
+                const dealNormalizedSubject = normalizeSubject(dealSubject)
+                return dealNormalizedSubject === normalizedSubject
+            })
+            
+            if (existingDeal) {
+                ctx.logger.info('Found existing email deal by subject matching', {
+                    dealId: existingDeal.dealId,
+                    subject: normalizedSubject,
+                    senderEmail: sender.id
+                })
+            }
+        }
 
         if (!existingDeal && sender?.id) {
             existingDeal = (allDeals || []).find(
@@ -141,12 +180,28 @@ export const handler = async (input, ctx) => {
             const previousBudget = existingDeal.terms?.proposedBudget
             const previousMessage = existingDeal.message
 
+            const updatedBrand = { ...existingDeal.brand }
+            if (source === 'email') {
+                if (emailSubject) updatedBrand.emailSubject = emailSubject
+                if (inquiry.raw?.inReplyTo || inquiry.inReplyTo) {
+                    updatedBrand.lastEmailId = inquiry.raw?.inReplyTo || inquiry.inReplyTo
+                }
+                if (inquiry.raw?.references || inquiry.references) {
+                    updatedBrand.emailReferences = inquiry.raw?.references || inquiry.references
+                }
+                // Ensure email is set
+                if (!updatedBrand.email && (sender?.id || inquiry?.senderId)) {
+                    updatedBrand.email = sender?.id || inquiry?.senderId
+                }
+            }
+
             const updatedDeal = {
                 ...existingDeal,
                 inquiryId,
                 message: inquiry.body || inquiry.raw?.body || existingDeal.message || '', 
                 rawInquiry: inquiry.body || inquiry.raw?.body || existingDeal.rawInquiry || '', 
-                extractedData: extracted, 
+                extractedData: extracted,
+                brand: updatedBrand,
                 terms: {
                     ...existingDeal.terms,
                     deliverables: mergedDeliverables,
@@ -300,9 +355,15 @@ export const handler = async (input, ctx) => {
             brand: {
                 name: senderName || brand.name || inquiry?.brandName || 'Unknown Brand',
                 contactPerson: brand.contactPerson || null,
-                email: brand.email || null,
+                email: source === 'email' ? (sender?.id || inquiry?.senderId) : (brand.email || null),
                 pageName: inquiry?.pageName || null,
-                platformAccountId: sender?.id || inquiry?.senderId || null
+                platformAccountId: sender?.id || inquiry?.senderId || null,
+                // Email-specific metadata
+                ...(source === 'email' && {
+                    emailSubject: emailSubject || null,
+                    lastEmailId: inquiry.raw?.inReplyTo || inquiry.inReplyTo || null,
+                    emailReferences: inquiry.raw?.references || inquiry.references || null
+                })
             },
 
             message: inquiry.body || inquiry.raw?.body || '',
