@@ -179,5 +179,30 @@ export const generateFinanceInsights = async (financeData: FinanceData): Promise
   })
   const data = await handle<{ success: boolean; insights: string; generatedAt: string }>(res)
   return data.insights
+// Competitor Benchmarking API functions
+export const triggerCompetitorAnalysis = async (creatorId: string, force?: boolean) => {
+  const res = await fetch(`${API_BASE}/competitor/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creatorId, force }),
+  })
+  return handle<{ success: boolean; message: string; workflowId?: string; error?: string; status?: string }>(res)
+}
+
+export const getCompetitorBenchmarking = async (creatorId: string) => {
+  try {
+    const res = await fetch(`${API_BASE}/competitor/analyze?creatorId=${encodeURIComponent(creatorId)}`, {
+      cache: "no-store",
+    })
+    if (res.status === 404) {
+      return { success: false, error: 'No benchmarking data found' }
+    }
+    return handle<{ success: boolean; state?: any; error?: string }>(res)
+  } catch (error: any) {
+    if (error.status === 404) {
+      return { success: false, error: 'No benchmarking data found' }
+    }
+    throw error
+  }
 }
 

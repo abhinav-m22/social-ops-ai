@@ -23,6 +23,7 @@
     "@motiadev/plugin-states": "^0.17.4-beta.185",
     "@types/node": "^25.0.1",
     "exceljs": "^4.4.0",
+    "apify-client": "^2.21.0",
     "groq-sdk": "^0.37.0",
     "motia": "^0.17.4-beta.185",
     "pdfkit": "^0.17.2",

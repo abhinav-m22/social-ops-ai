@@ -6,3 +6,4 @@ dist
 app/.env
 backend/.env
 context/
+backend/logs/
