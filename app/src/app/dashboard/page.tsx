@@ -107,6 +107,10 @@ const DashboardPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <Link
+            href="/finance"
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-5 py-2.5 text-sm font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+          >
+            <TrendingUp size={18} /> FinanceHub
             href="/competitor-benchmarking"
             className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white text-gray-700 px-5 py-2.5 text-sm font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
           >

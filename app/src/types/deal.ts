@@ -74,6 +74,7 @@ export interface Deal {
     proposedBudget?: number | null;
     agreedRate: number;
     gst: number;
+    tds?: number;
     total: number;
   };
   timeline: {
