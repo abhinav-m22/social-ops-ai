@@ -6,9 +6,9 @@ import type { Competitor, Platform } from './types.js'
 export const config: EventConfig = {
   type: 'event',
   name: 'DiscoverYouTubeCompetitors',
-  subscribes: ['competitor.discover.youtube'],
+  subscribes: [], // DISABLED: Replaced by platform-youtube-workflow.step.ts
   emits: ['competitor.youtube.found'],
-  description: 'Discovers YouTube competitors based on niche',
+  description: 'DISABLED: Replaced by platform-youtube-workflow.step.ts - workflow now triggered only via API',
   flows: ['competitor-benchmarking'],
   input: {
     type: 'object',

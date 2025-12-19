@@ -2,22 +2,32 @@
  * TypeScript types for Competitor Benchmarking workflow
  */
 
-export type BenchmarkingStatus = 'idle' | 'running' | 'completed' | 'failed'
+export type BenchmarkingStatus = 'idle' | 'running' | 'completed' | 'failed' | 'completed_with_partial_data'
 
 export type Platform = 'facebook' | 'youtube' | 'instagram'
 
+export type PlatformStatus = 'pending' | 'running' | 'completed' | 'failed'
+
+// Post-level content with URLs for UI
 export interface FacebookPost {
   post_id: string
+  content_id: string // Unique identifier
+  content_url: string // URL to the post
   created_time: string
+  created_at: string // ISO timestamp
   post_type: 'photo' | 'video' | 'link' | 'status'
   likes_count: number
   comments_count: number
   shares_count: number
+  views_count?: number // If available
 }
 
 export interface YouTubeVideo {
   video_id: string
+  content_id: string // Same as video_id
+  content_url: string // URL to the video
   published_at: string
+  created_at: string // ISO timestamp
   duration?: string
   view_count: number
   like_count: number
@@ -27,11 +37,15 @@ export interface YouTubeVideo {
 
 export interface InstagramPost {
   post_id: string
+  content_id: string // Unique identifier
+  content_url: string // URL to the post/reel
   timestamp: string
+  created_at: string // ISO timestamp
   contentType: 'reel' | 'post'
   likeCount: number
   commentCount: number
   playCount?: number // For reels
+  views_count?: number // For reels
   caption?: string
   hashtags?: string[]
 }
@@ -42,6 +56,39 @@ export interface CompetitorContent {
   facebook_posts?: FacebookPost[]
   youtube_videos?: YouTubeVideo[]
   instagram_posts?: InstagramPost[]
+}
+
+// Persisted competitor profile
+export interface CompetitorProfile {
+  id: string // Unique ID: platform-external_id
+  platform: Platform
+  external_id: string
+  name: string
+  profile_url: string
+  follower_count: number
+  category?: string
+  fetched_at: string
+  created_at: string
+  updated_at: string
+}
+
+// Persisted competitor content item
+export interface CompetitorContentItem {
+  id: string // Unique ID: platform-competitor_id-content_id
+  platform: Platform
+  competitor_id: string // References CompetitorProfile.id
+  content_id: string
+  content_type: 'reel' | 'post' | 'video' | 'short'
+  content_url: string
+  created_at: string
+  // Platform-specific metrics (normalized)
+  likes_count: number
+  comments_count: number
+  views_count?: number
+  shares_count?: number // FB only
+  duration?: string // YT/Reels
+  // Raw metrics (platform-specific)
+  raw_metrics: Record<string, any>
 }
 
 export interface CompetitorMetrics {
@@ -70,17 +117,53 @@ export interface CreatorMetadata {
   platformsConnected?: Platform[]
 }
 
+// Platform-specific AI insights
+export interface PlatformAIInsights {
+  platform: Platform
+  summary: {
+    positioning: string
+    strengths: string[]
+    weaknesses: string[]
+  }
+  content_insights: {
+    best_formats: string[]
+    underused_formats: string[]
+    top_topics: string[]
+  }
+  posting_strategy: {
+    recommended_frequency: number
+    best_days: string[]
+    best_time_window: string
+  }
+  growth_opportunities: string[]
+  generated_at: string
+}
+
 export interface CompetitorBenchmarkingState {
   // Creator metadata
   creatorMetadata: CreatorMetadata
 
-  // Competitors list
+  // Competitors list (for backward compatibility)
   competitors: Competitor[]
+
+  // Platform-wise status tracking
+  platform_status: {
+    instagram: PlatformStatus
+    facebook: PlatformStatus
+    youtube: PlatformStatus
+  }
+
+  // Platform-wise AI insights
+  platform_insights: {
+    instagram?: PlatformAIInsights
+    facebook?: PlatformAIInsights
+    youtube?: PlatformAIInsights
+  }
 
   // Creator metrics (placeholder)
   creator_metrics?: Record<string, any>
 
-  // AI analysis result
+  // Legacy AI analysis result (deprecated, use platform_insights)
   analysis_result?: {
     summary: {
       overall_position: 'underposting' | 'competitive' | 'outperforming'

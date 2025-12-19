@@ -28,9 +28,9 @@ function getNicheKeywords(niche: string): string[] {
 export const config: EventConfig = {
   type: 'event',
   name: 'DiscoverInstagramCompetitors',
-  subscribes: ['competitor.discover.instagram'],
+  subscribes: [], // DISABLED: Replaced by platform-instagram-workflow.step.ts
   emits: ['competitor.instagram.found'],
-  description: 'Discovers Instagram competitors with 100k-500k followers',
+  description: 'DISABLED: Replaced by platform-instagram-workflow.step.ts - workflow now triggered only via API',
   flows: ['competitor-benchmarking'],
   input: {
     type: 'object',

@@ -8,7 +8,7 @@ export const config: ApiRouteConfig = {
   path: '/competitor/analyze',
   method: 'POST',
   description: 'Triggers competitor benchmarking workflow for a creator',
-  emits: ['competitor.discover.instagram', 'competitor.discover.facebook', 'competitor.discover.youtube'],
+  emits: ['competitor.platform.instagram', 'competitor.platform.facebook', 'competitor.platform.youtube'],
   flows: ['competitor-benchmarking'],
   bodySchema: z.object({
     creatorId: z.string().min(1, 'creatorId is required'),
@@ -126,6 +126,12 @@ export const handler: Handlers['CompetitorAnalyze'] = async (req, ctx) => {
         platformsConnected: undefined
       },
       competitors: [],
+      platform_status: {
+        instagram: 'pending',
+        facebook: 'pending',
+        youtube: 'pending'
+      },
+      platform_insights: {},
       status: 'running',
       last_run_at: now,
       created_at: existingState?.created_at || now,
@@ -134,28 +140,29 @@ export const handler: Handlers['CompetitorAnalyze'] = async (req, ctx) => {
 
     await ctx.state.set('competitorBenchmarking', creatorId, initialState)
 
-    // Emit parallel discovery events for all platforms
+    // Emit parallel platform workflow events (NOT discovery events)
     const emitData = {
       instagram: { creatorId, niche: profileNiche },
       facebook: { creatorId, niche: profileNiche },
       youtube: { creatorId, niche: profileNiche, creatorSubscribers }
     }
 
-    ctx.logger.info('CompetitorAnalyze: Emitting parallel discovery events', {
+    ctx.logger.info('CompetitorAnalyze: Emitting parallel platform workflow events', {
       emitData: JSON.stringify(emitData, null, 2)
     })
 
+    // Trigger platform workflows in parallel
     await Promise.all([
       ctx.emit({
-        topic: 'competitor.discover.instagram',
+        topic: 'competitor.platform.instagram',
         data: emitData.instagram
       }),
       ctx.emit({
-        topic: 'competitor.discover.facebook',
+        topic: 'competitor.platform.facebook',
         data: emitData.facebook
       }),
       ctx.emit({
-        topic: 'competitor.discover.youtube',
+        topic: 'competitor.platform.youtube',
         data: emitData.youtube
       })
     ])

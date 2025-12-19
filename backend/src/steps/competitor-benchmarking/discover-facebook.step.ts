@@ -91,9 +91,9 @@ function getFallbackPages(niche: string): Array<{ url: string; name: string }> {
 export const config: EventConfig = {
   type: 'event',
   name: 'DiscoverFacebookCompetitors',
-  subscribes: ['competitor.discover.facebook'],
+  subscribes: [], // DISABLED: Replaced by platform-facebook-workflow.step.ts
   emits: ['competitor.facebook.found'],
-  description: 'Discovers Facebook competitors with 100k-500k followers',
+  description: 'DISABLED: Replaced by platform-facebook-workflow.step.ts - workflow now triggered only via API',
   flows: ['competitor-benchmarking'],
   input: {
     type: 'object',

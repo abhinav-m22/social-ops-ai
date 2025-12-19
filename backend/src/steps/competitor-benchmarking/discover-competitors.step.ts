@@ -6,9 +6,9 @@ import { runApifyActor, isApifyConfigured } from '../../lib/competitor-benchmark
 export const config: EventConfig = {
   type: 'event',
   name: 'DiscoverCompetitors',
-  subscribes: ['competitor.discover'],
+  subscribes: [], // DISABLED: Legacy step - workflow now triggered only via API
   emits: ['competitor.discover.instagram', 'competitor.discover.facebook', 'competitor.discover.youtube'],
-  description: 'Legacy step - now dispatches parallel platform discovery',
+  description: 'DISABLED: Legacy step - workflow now triggered only via API call to /competitor/analyze',
   flows: ['competitor-benchmarking'],
   input: {
     type: 'object',
@@ -632,8 +632,8 @@ export const handler: Handlers['DiscoverCompetitors'] = async (input, ctx) => {
 
   try {
     // Get creator profile to get niche and subscriber info
-    const creatorProfile = await ctx.state.get('creatorProfiles', creatorId)
-    const profileNiche = creatorProfile ? ((creatorProfile as any).niche || (creatorProfile as any).category) : 'tech'
+    const creatorProfile = await ctx.state.get('creatorProfiles', creatorId) as any
+    const profileNiche = creatorProfile ? (creatorProfile.niche || creatorProfile.category) : 'tech'
     const creatorSubscribers = creatorProfile?.socials?.find((s: any) => s.platform === 'youtube')?.followers || 1
 
     // Emit parallel discovery events for all platforms

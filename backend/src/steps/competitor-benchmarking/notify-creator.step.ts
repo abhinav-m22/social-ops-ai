@@ -1,11 +1,11 @@
 import type { EventConfig, Handlers } from 'motia'
-import type { CompetitorBenchmarkingState } from './types'
+import type { CompetitorBenchmarkingState } from './types.js'
 
 export const config: EventConfig = {
   type: 'event',
   name: 'NotifyCreator',
   subscribes: ['competitor.notify.creator'],
-  emits: [],
+  emits: ['competitor.final.aggregate'],
   description: 'Notifies creator that competitor benchmarking analysis is complete',
   flows: ['competitor-benchmarking'],
   input: {
@@ -17,7 +17,7 @@ export const config: EventConfig = {
   }
 }
 
-export const handler: Handlers['NotifyCreator'] = async (input, ctx) => {
+export const handler = async (input: any, ctx: any) => {
   const { creatorId } = input || {}
 
   ctx.logger.info('NotifyCreator: Starting notification', {
@@ -32,10 +32,10 @@ export const handler: Handlers['NotifyCreator'] = async (input, ctx) => {
 
   try {
     // Get current state
-    const state = await ctx.state.get<CompetitorBenchmarkingState>(
+    const state = await ctx.state.get(
       'competitorBenchmarking',
       creatorId
-    )
+    ) as CompetitorBenchmarkingState | null
 
     if (!state) {
       ctx.logger.error('NotifyCreator: State not found', { creatorId })
@@ -54,25 +54,25 @@ export const handler: Handlers['NotifyCreator'] = async (input, ctx) => {
     //    - Push notification (if configured)
     // 3. Log notification sent
 
-    ctx.logger.info('NotifyCreator: TODO - Implement notification', {
+    ctx.logger.info('NotifyCreator: Triggering final aggregation', {
       creatorId,
-      hasAnalysis: !!state.analysis_result,
-      competitorCount: state.competitors.length
+      hasPlatformInsights: {
+        instagram: !!state.platform_insights?.instagram,
+        facebook: !!state.platform_insights?.facebook,
+        youtube: !!state.platform_insights?.youtube
+      },
+      competitorCount: state.competitors.length,
+      platformStatus: state.platform_status
     })
 
-    // Update state to completed
-    const completedState: CompetitorBenchmarkingState = {
-      ...state,
-      status: 'completed',
-      updated_at: new Date().toISOString()
-    }
+    // Emit event to aggregate final insights
+    await ctx.emit({
+      topic: 'competitor.final.aggregate',
+      data: { creatorId }
+    })
 
-    await ctx.state.set('competitorBenchmarking', creatorId, completedState)
-
-    ctx.logger.info('NotifyCreator: Workflow completed successfully', {
-      creatorId,
-      status: 'completed',
-      last_run_at: completedState.last_run_at
+    ctx.logger.info('NotifyCreator: Final aggregation triggered', {
+      creatorId
     })
   } catch (error) {
     ctx.logger.error('NotifyCreator: Failed', {
@@ -82,10 +82,10 @@ export const handler: Handlers['NotifyCreator'] = async (input, ctx) => {
     })
 
     // Update state to failed
-    const state = await ctx.state.get<CompetitorBenchmarkingState>(
+    const state = await ctx.state.get(
       'competitorBenchmarking',
       creatorId
-    )
+    ) as CompetitorBenchmarkingState | null
     if (state) {
       const failedState: CompetitorBenchmarkingState = {
         ...state,
