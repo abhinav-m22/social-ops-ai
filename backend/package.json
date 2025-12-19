@@ -22,8 +22,10 @@
     "@motiadev/plugin-observability": "^0.17.4-beta.185",
     "@motiadev/plugin-states": "^0.17.4-beta.185",
     "@types/node": "^25.0.1",
+    "exceljs": "^4.4.0",
     "groq-sdk": "^0.37.0",
     "motia": "^0.17.4-beta.185",
+    "pdfkit": "^0.17.2",
     "resend": "^6.6.0",
     "zod": "^4.1.12"
   },

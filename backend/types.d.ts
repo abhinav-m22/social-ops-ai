@@ -53,6 +53,9 @@ declare module 'motia' {
     'ProcessGreeting': EventHandler<{ timestamp: string; appName: string; greetingPrefix: string; requestId: string }, { topic: 'greeting-processed'; data: { requestId: string; greeting: string; processedBy: string } }>
     'SeedDeals': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetFinanceData': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'ExportFinancePDF': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'ExportFinanceExcel': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GenerateFinanceInsights': ApiRouteHandler<Record<string, unknown>, unknown, never>
   }
     
 }
