@@ -99,3 +99,85 @@ export const sendInvoiceEmail = async (invoiceId: string) => {
   return handle<{ success: boolean; message: string; emailId?: string; invoice: any }>(res)
 }
 
+// FinanceHub API functions
+export interface FinanceData {
+  summary: {
+    totalEarnings: number
+    totalGST: number
+    totalTDS: number
+    netReceivable: number
+    dealCount: number
+  }
+  platformData: Array<{
+    platform: string
+    earnings: number
+    count: number
+  }>
+  monthlyTrend: Array<{
+    month: string
+    earnings: number
+    gst: number
+    tds: number
+  }>
+  gst: {
+    collected: number
+    estimatedPayable: number
+    tableData: Array<{
+      dealId: string
+      invoiceId: string
+      brand: string
+      amount: number
+      gst: number
+      total: number
+      createdAt: string
+    }>
+  }
+  tds: {
+    totalDeducted: number
+    dealsWithTDS: number
+    tableData: Array<{
+      dealId: string
+      brand: string
+      grossAmount: number
+      tds: number
+      netAmount: number
+      createdAt: string
+    }>
+  }
+}
+
+export const fetchFinanceData = async (): Promise<FinanceData> => {
+  const res = await fetch(`${API_BASE}/api/finance`, { cache: "no-store" })
+  const data = await handle<{ success: boolean; data: FinanceData }>(res)
+  return data.data
+}
+
+export const exportFinancePDF = async (): Promise<Blob> => {
+  const res = await fetch(`${API_BASE}/api/finance/export/pdf`, { cache: "no-store" })
+  if (!res.ok) {
+    const msg = await res.text()
+    throw new Error(msg || `Export failed (${res.status})`)
+  }
+  return await res.blob()
+}
+
+export const exportFinanceExcel = async (): Promise<Blob> => {
+  const res = await fetch(`${API_BASE}/api/finance/export/excel`, { cache: "no-store" })
+  if (!res.ok) {
+    const msg = await res.text()
+    throw new Error(msg || `Export failed (${res.status})`)
+  }
+  return await res.blob()
+}
+
+export const generateFinanceInsights = async (financeData: FinanceData): Promise<string> => {
+  const res = await fetch(`${API_BASE}/api/finance/insights`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: financeData }),
+    cache: "no-store"
+  })
+  const data = await handle<{ success: boolean; insights: string; generatedAt: string }>(res)
+  return data.insights
+}
+
