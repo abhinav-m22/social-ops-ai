@@ -11,7 +11,8 @@ export const config: ApiRouteConfig = {
   emits: ['competitor.discover'],
   flows: ['competitor-benchmarking'],
   bodySchema: z.object({
-    creatorId: z.string().min(1, 'creatorId is required')
+    creatorId: z.string().min(1, 'creatorId is required'),
+    force: z.boolean().optional().describe('Force restart even if workflow is running')
   }),
   responseSchema: {
     200: z.object({
@@ -37,10 +38,11 @@ export const config: ApiRouteConfig = {
 }
 
 export const handler: Handlers['CompetitorAnalyze'] = async (req, ctx) => {
-  const { creatorId } = req.body || {}
+  const { creatorId, force } = req.body || {}
 
   ctx.logger.info('CompetitorAnalyze: Request received', {
     creatorId,
+    force,
     traceId: ctx.traceId
   })
 
@@ -65,8 +67,8 @@ export const handler: Handlers['CompetitorAnalyze'] = async (req, ctx) => {
     if (existingState) {
       const status = existingState.status
 
-      // If workflow is already running, return 409 Conflict
-      if (status === 'running') {
+      // If workflow is already running and force is not set, return 409 Conflict
+      if (status === 'running' && !force) {
         ctx.logger.warn('CompetitorAnalyze: Workflow already running', {
           creatorId,
           status,
@@ -77,18 +79,28 @@ export const handler: Handlers['CompetitorAnalyze'] = async (req, ctx) => {
           status: 409,
           body: {
             success: false,
-            error: 'A benchmarking workflow is already in progress for this creator',
-            status: status as BenchmarkingStatus
+            error: 'A benchmarking workflow is already in progress for this creator. Use force: true to restart.',
+            status: status === 'running' ? 'running' : status === 'completed' ? 'completed' : 'failed'
           }
         }
       }
 
+      // If force is true and workflow is running, cancel it
+      if (status === 'running' && force) {
+        ctx.logger.info('CompetitorAnalyze: Force restart requested, canceling existing workflow', {
+          creatorId,
+          previousRunAt: existingState.last_run_at
+        })
+      }
+
       // If workflow completed or failed, we can start a new one
-      ctx.logger.info('CompetitorAnalyze: Previous run found, starting new workflow', {
-        creatorId,
-        previousStatus: status,
-        previousRunAt: existingState.last_run_at
-      })
+      if (status !== 'running') {
+        ctx.logger.info('CompetitorAnalyze: Previous run found, starting new workflow', {
+          creatorId,
+          previousStatus: status,
+          previousRunAt: existingState.last_run_at
+        })
+      }
     }
 
     // Fetch creator profile to get niche if available

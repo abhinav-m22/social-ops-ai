@@ -22,6 +22,7 @@ export interface YouTubeVideo {
   view_count: number
   like_count: number
   comment_count: number
+  title?: string
 }
 
 export interface CompetitorContent {
@@ -67,12 +68,38 @@ export interface CompetitorBenchmarkingState {
   // Creator metrics (placeholder)
   creator_metrics?: Record<string, any>
 
-  // AI analysis result (placeholder)
+  // AI analysis result
   analysis_result?: {
-    insights?: string[]
-    recommendations?: string[]
-    summary?: string
-    [key: string]: any
+    summary: {
+      overall_position: 'underposting' | 'competitive' | 'outperforming'
+      key_strengths: string[]
+      key_weaknesses: string[]
+    }
+    comparisons: {
+      posting_frequency_gap_percent: number
+      engagement_rate_delta_percent: number
+      avg_views_delta_percent: number
+    }
+    content_gaps: Array<{
+      topic_or_format: string
+      observed_in_competitors_count: number
+      reason: string
+    }>
+    recommendations: Array<{
+      action: string
+      expected_impact: string
+      priority: 'high' | 'medium' | 'low'
+    }>
+    optimal_strategy: {
+      posts_per_week: number
+      best_days: string[]
+      best_time_window: string
+    }
+    growth_projection: {
+      '30_days': string
+      '60_days': string
+      '90_days': string
+    }
   }
 
   // Workflow status

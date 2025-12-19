@@ -138,13 +138,23 @@ async function fetchYouTubeVideos(
         
         // Double-check date filter
         if (publishedAt >= thirtyDaysAgoTime) {
+          const videoTitle = video.snippet?.title || 'Untitled'
           videos.push({
             video_id: video.id,
             published_at: video.snippet?.publishedAt || '',
             duration: video.contentDetails?.duration,
             view_count: parseInt(video.statistics?.viewCount || '0'),
             like_count: parseInt(video.statistics?.likeCount || '0'),
-            comment_count: parseInt(video.statistics?.commentCount || '0')
+            comment_count: parseInt(video.statistics?.commentCount || '0'),
+            title: videoTitle
+          })
+          
+          logger.debug('FetchYouTubeVideos: Video found', {
+            channelId,
+            videoId: video.id,
+            title: videoTitle,
+            views: parseInt(video.statistics?.viewCount || '0').toLocaleString(),
+            publishedAt: video.snippet?.publishedAt
           })
         }
       }
@@ -152,7 +162,15 @@ async function fetchYouTubeVideos(
 
     logger.info('FetchYouTubeVideos: Fetched videos', {
       channelId,
-      videoCount: videos.length
+      videoCount: videos.length,
+      videoTitles: videos.slice(0, 10).map((v, idx) => ({
+        index: idx + 1,
+        title: v.title || 'Untitled',
+        videoId: v.video_id,
+        views: v.view_count.toLocaleString(),
+        likes: v.like_count.toLocaleString(),
+        comments: v.comment_count.toLocaleString()
+      }))
     })
 
   } catch (error) {
@@ -266,12 +284,17 @@ export const handler: Handlers['FetchCompetitorContent'] = async (input, ctx) =>
             }
           })
 
-          ctx.logger.info('FetchCompetitorContent: YouTube content fetched', {
-            competitorId: competitor.external_id,
-            competitorName: competitor.name,
-            videoCount: videos.length,
-            subscriberCount: competitor.follower_count.toLocaleString()
-          })
+              ctx.logger.info('FetchCompetitorContent: YouTube content fetched', {
+                competitorId: competitor.external_id,
+                competitorName: competitor.name,
+                videoCount: videos.length,
+                subscriberCount: competitor.follower_count.toLocaleString(),
+                videoTitles: videos.slice(0, 5).map(v => ({
+                  title: v.title || 'Untitled',
+                  views: v.view_count.toLocaleString(),
+                  likes: v.like_count.toLocaleString()
+                }))
+              })
         } else {
           // Unknown platform, keep as-is
           updatedCompetitors.push(competitor)
