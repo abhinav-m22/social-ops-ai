@@ -91,13 +91,16 @@ export const handler: Handlers['CompetitorAnalyze'] = async (req, ctx) => {
       })
     }
 
+    // Fetch creator profile to get niche if available
+    const creatorProfile = await ctx.state.get('creatorProfiles', creatorId)
+    const profileNiche = creatorProfile ? ((creatorProfile as any).niche || (creatorProfile as any).category) : undefined
+    
     // Initialize or update state to 'running'
     const now = new Date().toISOString()
     const initialState: CompetitorBenchmarkingState = {
       creatorMetadata: {
         creatorId,
-        // TODO: Fetch from creator profile
-        niche: undefined,
+        niche: profileNiche || 'tech',
         category: undefined,
         platformsConnected: undefined
       },

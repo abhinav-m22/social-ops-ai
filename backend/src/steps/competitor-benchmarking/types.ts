@@ -6,12 +6,48 @@ export type BenchmarkingStatus = 'idle' | 'running' | 'completed' | 'failed'
 
 export type Platform = 'facebook' | 'youtube'
 
+export interface FacebookPost {
+  post_id: string
+  created_time: string
+  post_type: 'photo' | 'video' | 'link' | 'status'
+  likes_count: number
+  comments_count: number
+  shares_count: number
+}
+
+export interface YouTubeVideo {
+  video_id: string
+  published_at: string
+  duration?: string
+  view_count: number
+  like_count: number
+  comment_count: number
+}
+
+export interface CompetitorContent {
+  platform: Platform
+  external_id: string
+  facebook_posts?: FacebookPost[]
+  youtube_videos?: YouTubeVideo[]
+}
+
+export interface CompetitorMetrics {
+  avg_views: number
+  avg_likes: number
+  avg_comments: number
+  engagement_rate: number
+  posting_frequency: number // posts/videos per week
+  best_performing_content_type?: string
+  peak_posting_days?: number[]
+}
+
 export interface Competitor {
   platform: Platform
   external_id: string
   name: string
   follower_count: number
-  metrics?: Record<string, any> // Placeholder for future metrics
+  metrics?: CompetitorMetrics
+  content?: CompetitorContent
 }
 
 export interface CreatorMetadata {
