@@ -1,13 +1,14 @@
 import type { EventConfig, Handlers } from 'motia'
 import type { CompetitorBenchmarkingState, Competitor, Platform } from './types.js'
 import type { CreatorProfile } from '../creator-profile/types.js'
+import { runApifyActor, isApifyConfigured } from '../../lib/competitor-benchmarking/apifyClient.js'
 
 export const config: EventConfig = {
   type: 'event',
   name: 'DiscoverCompetitors',
   subscribes: ['competitor.discover'],
-  emits: ['competitor.content.fetch'],
-  description: 'Discovers competitors for a creator based on niche/category',
+  emits: ['competitor.discover.instagram', 'competitor.discover.facebook', 'competitor.discover.youtube'],
+  description: 'Legacy step - now dispatches parallel platform discovery',
   flows: ['competitor-benchmarking'],
   input: {
     type: 'object',
@@ -19,31 +20,365 @@ export const config: EventConfig = {
 }
 
 /**
- * Discover Facebook competitors */
-async function discoverFacebookCompetitors(
-  creatorProfile: CreatorProfile | null,
-  creatorFollowers: number,
-  token: string,
+ * Discover Instagram competitors using Apify
+ * Finds creators with 100k-500k followers in the given niche
+ */
+async function discoverInstagramCompetitors(
+  niche: string,
   logger: any
 ): Promise<Competitor[]> {
   const competitors: Competitor[] = []
-  const maxCompetitors = 10
-  const minFollowers = Math.floor(creatorFollowers * 0.5)
-  const maxFollowers = Math.floor(creatorFollowers * 2)
+  const maxCompetitors = 5
+  const minFollowers = 100000
+  const maxFollowers = 500000
+
+  if (!isApifyConfigured()) {
+    logger.warn('DiscoverInstagramCompetitors: Apify not configured, skipping Instagram discovery')
+    return competitors
+  }
 
   try {
-    const niche = creatorProfile?.socials?.find(s => s.platform === 'facebook')?.handle || 'creator'
-        
-    logger.info('DiscoverFacebookCompetitors: Facebook page search is limited', {
+    logger.info('DiscoverInstagramCompetitors: Starting discovery', {
       niche,
       minFollowers,
       maxFollowers,
-      note: 'Facebook Graph API does not provide public page search by category. Consider using third-party services or manual input.'
+      targetRange: '100k-500k followers'
+    })
+
+    // Use Apify Instagram scraper directly with search queries
+    // This actor can search for profiles, posts, hashtags, etc.
+    const searchInput = {
+      searchQueries: [`${niche} creator`, `${niche} influencer`, `${niche} expert`],
+      resultsType: 'profiles',
+      maxItems: 50,
+      searchLimit: 20
+    }
+
+    logger.info('DiscoverInstagramCompetitors: Calling Apify Instagram scraper', {
+      actorId: 'apify/instagram-scraper',
+      input: JSON.stringify(searchInput, null, 2)
+    })
+
+    const results = await runApifyActor<any>(
+      'apify/instagram-scraper',
+      searchInput,
+      logger
+    )
+
+    // Log raw Apify response for debugging
+    logger.info('DiscoverInstagramCompetitors: Raw Apify response received', {
+      resultCount: results?.length || 0,
+      hasResults: !!results && results.length > 0,
+      sampleResult: results && results.length > 0 ? {
+        keys: Object.keys(results[0]),
+        sample: JSON.stringify(results[0], null, 2)
+      } : null,
+      allResults: results ? results.map((item: any, idx: number) => ({
+        index: idx + 1,
+        keys: Object.keys(item),
+        data: JSON.stringify(item, null, 2)
+      })) : []
+    })
+
+    if (!results || results.length === 0) {
+      logger.warn('DiscoverInstagramCompetitors: No results from Apify', {
+        niche,
+        searchInput
+      })
+      return competitors
+    }
+
+    // Log all raw profiles for debugging
+    logger.info('DiscoverInstagramCompetitors: Processing raw profiles', {
+      totalProfiles: results.length,
+      profiles: results.map((profile: any, idx: number) => ({
+        index: idx + 1,
+        username: profile.username || profile.handle || profile.id || 'unknown',
+        fullName: profile.fullName || profile.name || 'unknown',
+        followerCount: profile.followersCount || profile.followers || profile.followerCount || 0,
+        isPrivate: profile.isPrivate || profile.private || false,
+        isVerified: profile.isVerified || profile.verified || false,
+        allKeys: Object.keys(profile)
+      }))
+    })
+
+    const filtered = results
+      .filter((profile: any) => {
+        const followerCount = profile.followersCount ||
+                            profile.followers ||
+                            profile.followerCount ||
+                            profile.follower_count ||
+                            0
+
+        const inRange = followerCount >= minFollowers && followerCount <= maxFollowers
+
+        const isPublic = !profile.isPrivate && !profile.private
+
+        const hasUsername = !!(profile.username || profile.handle || profile.id)
+
+        const isValid = inRange && isPublic && hasUsername
+
+        logger.debug('DiscoverInstagramCompetitors: Profile filter check', {
+          username: profile.username || profile.handle || profile.id || 'unknown',
+          followerCount: followerCount.toLocaleString(),
+          inRange: `${inRange} (${minFollowers.toLocaleString()}-${maxFollowers.toLocaleString()})`,
+          isPublic,
+          hasUsername,
+          isValid,
+          willInclude: isValid
+        })
+
+        return isValid
+      })
+      .map((profile: any) => {
+        const followerCount = profile.followersCount ||
+                            profile.followers ||
+                            profile.followerCount ||
+                            profile.follower_count ||
+                            0
+
+        const competitor = {
+          platform: 'instagram' as Platform,
+          external_id: profile.username || profile.handle || profile.id || '',
+          name: profile.fullName || profile.name || profile.username || 'Unknown',
+          follower_count: followerCount,
+          isVerified: profile.isVerified || profile.verified || false
+        }
+
+        logger.debug('DiscoverInstagramCompetitors: Mapped competitor', {
+          competitor: JSON.stringify(competitor, null, 2)
+        })
+
+        return competitor
+      })
+      .sort((a: Competitor, b: Competitor) => {
+        const aInPreferredRange = a.follower_count >= 100000 && a.follower_count <= 200000
+        const bInPreferredRange = b.follower_count >= 100000 && b.follower_count <= 200000
+
+        if (aInPreferredRange && !bInPreferredRange) return -1
+        if (!aInPreferredRange && bInPreferredRange) return 1
+        return b.follower_count - a.follower_count
+      })
+      .slice(0, maxCompetitors)
+
+    competitors.push(...filtered)
+
+    logger.info('DiscoverInstagramCompetitors: Discovery completed', {
+      niche,
+      totalResults: results.length,
+      filteredCount: filtered.length,
+      finalCompetitorCount: competitors.length,
+      competitors: competitors.map(c => ({
+        username: c.external_id,
+        name: c.name,
+        followers: c.follower_count.toLocaleString(),
+        verified: (c as any).isVerified
+      }))
+    })
+
+  } catch (error) {
+    logger.error('DiscoverInstagramCompetitors: Error', {
+      niche,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    })
+  }
+
+  return competitors.slice(0, maxCompetitors)
+}
+
+/**
+ * Discover Facebook competitors using Apify
+ * Finds pages with 100k-500k followers in the given niche
+ */
+async function discoverFacebookCompetitors(
+  niche: string,
+  logger: any
+): Promise<Competitor[]> {
+  const competitors: Competitor[] = []
+  const maxCompetitors = 5
+  const minFollowers = 100000
+  const maxFollowers = 500000
+
+  if (!isApifyConfigured()) {
+    logger.warn('DiscoverFacebookCompetitors: Apify not configured, skipping Facebook discovery')
+    return competitors
+  }
+
+  try {
+    logger.info('DiscoverFacebookCompetitors: Starting discovery', {
+      niche,
+      minFollowers,
+      maxFollowers,
+      targetRange: '100k-500k followers'
+    })
+
+    const popularPages = [
+      'https://www.facebook.com/techcrunch',
+      'https://www.facebook.com/wired',
+      'https://www.facebook.com/theverge',
+      'https://www.facebook.com/arsTechnica',
+      'https://www.facebook.com/engadget',
+      'https://www.facebook.com/gizmodo',
+      'https://www.facebook.com/mashable',
+      'https://www.facebook.com/cnet',
+      'https://www.facebook.com/bloombergtechnology',
+      'https://www.facebook.com/recode'
+    ]
+
+    const actorInput = {
+      startUrls: popularPages.map(url => ({ url })),
+      resultsLimit: 20
+    }
+
+    logger.info('DiscoverFacebookCompetitors: Calling Apify Facebook scraper', {
+      actorId: 'apify/facebook-pages-scraper',
+      input: JSON.stringify(actorInput, null, 2)
+    })
+
+    const results = await runApifyActor<any>(
+      'apify/facebook-pages-scraper',
+      actorInput,
+      logger
+    )
+
+    logger.info('DiscoverFacebookCompetitors: Raw Apify response received', {
+      resultCount: results?.length || 0,
+      hasResults: !!results && results.length > 0,
+      sampleResult: results && results.length > 0 ? {
+        keys: Object.keys(results[0]),
+        sample: JSON.stringify(results[0], null, 2)
+      } : null,
+      allResults: results ? results.map((item: any, idx: number) => ({
+        index: idx + 1,
+        keys: Object.keys(item),
+        data: JSON.stringify(item, null, 2)
+      })) : []
+    })
+
+    if (!results || results.length === 0) {
+      logger.warn('DiscoverFacebookCompetitors: No results from Apify', {
+        niche,
+        actorInput
+      })
+      return competitors
+    }
+
+    // Check if response contains error objects
+    const errorResults = results.filter((item: any) => item.error || item.errorDescription)
+    if (errorResults.length > 0) {
+      logger.warn('DiscoverFacebookCompetitors: Apify returned error responses', {
+        niche,
+        errorCount: errorResults.length,
+        errors: errorResults.map((e: any) => ({
+          error: e.error,
+          errorDescription: e.errorDescription
+        }))
+      })
+      // Filter out error objects
+      const validResults = results.filter((item: any) => !item.error && !item.errorDescription)
+      if (validResults.length === 0) {
+        logger.warn('DiscoverFacebookCompetitors: No valid results after filtering errors', {
+          niche
+        })
+        return competitors
+      }
+      // Use only valid results
+      const tempResults = results
+      results.length = 0
+      results.push(...validResults)
+      logger.info('DiscoverFacebookCompetitors: Filtered out error responses', {
+        originalCount: tempResults.length,
+        validCount: results.length
+      })
+    }
+
+    // Log all raw pages for debugging
+    logger.info('DiscoverFacebookCompetitors: Processing raw pages', {
+      totalPages: results.length,
+      pages: results.map((page: any, idx: number) => ({
+        index: idx + 1,
+        pageId: page.pageId || page.id || page.page_id || 'unknown',
+        pageName: page.pageName || page.name || page.title || 'unknown',
+        followersCount: page.followersCount || page.followers || page.follower_count || page.likes || page.likesCount || 0,
+        category: page.category || 'unknown',
+        allKeys: Object.keys(page)
+      }))
+    })
+
+    // Filter results to 100k-500k followers
+    const filtered = results
+      .filter((page: any) => {
+        const followerCount = page.followersCount ||
+                            page.followers ||
+                            page.follower_count ||
+                            page.likes ||
+                            page.likesCount ||
+                            0
+
+        const inRange = followerCount >= minFollowers && followerCount <= maxFollowers
+
+        const hasPageId = !!(page.pageId || page.id || page.page_id)
+
+        const isValid = inRange && hasPageId
+
+        logger.debug('DiscoverFacebookCompetitors: Page filter check', {
+          pageId: page.pageId || page.id || 'unknown',
+          pageName: page.pageName || page.name || page.title || 'unknown',
+          followerCount: followerCount.toLocaleString(),
+          inRange: `${inRange} (${minFollowers.toLocaleString()}-${maxFollowers.toLocaleString()})`,
+          hasPageId,
+          isValid,
+          willInclude: isValid
+        })
+
+        return isValid
+      })
+      .map((page: any) => {
+        const followerCount = page.followersCount ||
+                            page.followers ||
+                            page.follower_count ||
+                            page.likes ||
+                            page.likesCount ||
+                            0
+
+        const competitor = {
+          platform: 'facebook' as Platform,
+          external_id: page.pageId || page.id || page.page_id || '',
+          name: page.pageName || page.name || page.title || 'Unknown',
+          follower_count: followerCount,
+          category: page.category || ''
+        }
+
+        logger.debug('DiscoverFacebookCompetitors: Mapped competitor', {
+          competitor: JSON.stringify(competitor, null, 2)
+        })
+
+        return competitor
+      })
+      .sort((a: Competitor, b: Competitor) => b.follower_count - a.follower_count)
+      .slice(0, maxCompetitors)
+
+    competitors.push(...filtered)
+
+    logger.info('DiscoverFacebookCompetitors: Discovery completed', {
+      niche,
+      totalResults: results.length,
+      filteredCount: filtered.length,
+      finalCompetitorCount: competitors.length,
+      competitors: competitors.map(c => ({
+        pageId: c.external_id,
+        name: c.name,
+        followers: c.follower_count.toLocaleString(),
+        category: (c as any).category
+      }))
     })
 
   } catch (error) {
     logger.error('DiscoverFacebookCompetitors: Error', {
-      error: error instanceof Error ? error.message : String(error)
+      niche,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
     })
   }
 
@@ -145,7 +480,7 @@ async function discoverYouTubeCompetitors(
   logger: any
 ): Promise<Competitor[]> {
   const competitors: Competitor[] = []
-  const maxCompetitors = 10
+  const maxCompetitors = 5
   let searchRanges: Array<{ min: number; max: number; label: string }> = []
   
   if (creatorSubscribers === 1) {
@@ -165,23 +500,23 @@ async function discoverYouTubeCompetitors(
   }
 
   try {
-    let searchQuery = `${niche} channel`
+    let search = `${niche} channel`
     
     if (niche === 'general') {
-      searchQuery = 'tech channel'
+      search = 'tech channel'
       logger.info('DiscoverYouTubeCompetitors: Niche is "general", using "tech" for search', {
         originalNiche: niche
       })
     }
     
     logger.info('DiscoverYouTubeCompetitors: Searching channels', {
-      query: searchQuery,
+      query: search,
       niche,
       creatorSubscribers,
       searchRanges: searchRanges.map(r => `${r.label}: ${r.min}-${r.max}`)
     })
 
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(searchQuery)}&maxResults=50&key=${apiKey}`
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(search)}&maxResults=20&key=${apiKey}`
     
     const searchResponse = await fetch(searchUrl)
     if (!searchResponse.ok) {
@@ -195,11 +530,11 @@ async function discoverYouTubeCompetitors(
       .filter(Boolean)
 
     if (channelIds.length === 0) {
-      logger.warn('DiscoverYouTubeCompetitors: No channels found', { query: searchQuery })
+      logger.warn('DiscoverYouTubeCompetitors: No channels found', { query: search })
       return competitors
     }
 
-    const batchSize = 50
+    const batchSize = 20
     const allChannels: any[] = []
 
     for (let i = 0; i < channelIds.length; i += batchSize) {
@@ -285,7 +620,7 @@ async function discoverYouTubeCompetitors(
 export const handler: Handlers['DiscoverCompetitors'] = async (input, ctx) => {
   const { creatorId } = input || {}
 
-  ctx.logger.info('DiscoverCompetitors: Starting competitor discovery', {
+  ctx.logger.info('DiscoverCompetitors: Legacy step - dispatching parallel platform discovery', {
     creatorId,
     traceId: ctx.traceId
   })
@@ -296,287 +631,48 @@ export const handler: Handlers['DiscoverCompetitors'] = async (input, ctx) => {
   }
 
   try {
-    // Get current state
-    const state = await ctx.state.get<CompetitorBenchmarkingState>(
-      'competitorBenchmarking',
-      creatorId
-    )
+    // Get creator profile to get niche and subscriber info
+    const creatorProfile = await ctx.state.get('creatorProfiles', creatorId)
+    const profileNiche = creatorProfile ? ((creatorProfile as any).niche || (creatorProfile as any).category) : 'tech'
+    const creatorSubscribers = creatorProfile?.socials?.find((s: any) => s.platform === 'youtube')?.followers || 1
 
-    if (!state) {
-      ctx.logger.error('DiscoverCompetitors: State not found', { creatorId })
-      const failedState: CompetitorBenchmarkingState = {
-        creatorMetadata: { creatorId },
-        competitors: [],
-        status: 'failed',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-      await ctx.state.set('competitorBenchmarking', creatorId, failedState)
-      return
-    }
-
-    const creatorProfile = await ctx.state.get<CreatorProfile>('creatorProfiles', creatorId)
-
-    let niche = state.creatorMetadata.niche
-
-    if (!niche && creatorProfile) {
-
-      niche = (creatorProfile as any).niche || (creatorProfile as any).category
-    }
-    
-    // Fallback to "tech" if still not found (better than "general" for search)
-    if (!niche) {
-      niche = 'tech'
-      ctx.logger.info('DiscoverCompetitors: Niche not found, using fallback "tech"', {
-        creatorId,
-        note: 'Consider adding niche field to CreatorProfile or passing it in API request'
-      })
-    }
-    
-    const facebookProfile = creatorProfile?.socials?.find((s: any) => s.platform === 'facebook')
-    const youtubeProfile = creatorProfile?.socials?.find((s: any) => s.platform === 'youtube')
-    
-    ctx.logger.info('DiscoverCompetitors: Profile debug info', {
-      hasProfile: !!creatorProfile,
-      hasSocials: !!creatorProfile?.socials,
-      socialsCount: creatorProfile?.socials?.length || 0,
-      youtubeProfile: youtubeProfile ? {
-        platform: youtubeProfile.platform,
-        handle: youtubeProfile.handle,
-        url: youtubeProfile.url,
-        followers: youtubeProfile.followers
-      } : null
-    })
-
-    let youtubeChannelId: string | null = null
-    if (youtubeProfile) {
-      if (youtubeProfile.handle) {
-        if (youtubeProfile.handle.startsWith('UC')) {
-          youtubeChannelId = youtubeProfile.handle
-          ctx.logger.info('DiscoverCompetitors: Found channel ID in handle', {
-            channelId: youtubeChannelId
-          })
-        } else if (youtubeProfile.url) {
-          const channelMatch = youtubeProfile.url.match(/channel\/([a-zA-Z0-9_-]+)/)
-          if (channelMatch) {
-            youtubeChannelId = channelMatch[1]
-            ctx.logger.info('DiscoverCompetitors: Found channel ID in URL', {
-              channelId: youtubeChannelId,
-              url: youtubeProfile.url
-            })
-          } else {
-            const handleMatch = youtubeProfile.url.match(/@([a-zA-Z0-9_-]+)/)
-            if (handleMatch) {
-              ctx.logger.warn('DiscoverCompetitors: YouTube handle found but channel ID needed', {
-                handle: handleMatch[1],
-                url: youtubeProfile.url,
-                note: 'Need to convert @handle to channel ID or store channel ID in profile'
-              })
-            }
-          }
-        } else {
-          if (youtubeProfile.handle.startsWith('@')) {
-            ctx.logger.info('DiscoverCompetitors: Detected YouTube handle, converting to channel ID', {
-              handle: youtubeProfile.handle
-            })
-          } else {
-            if (youtubeProfile.handle.length >= 20) {
-              youtubeChannelId = youtubeProfile.handle
-              ctx.logger.info('DiscoverCompetitors: Using handle as channel ID (assuming it is one)', {
-                channelId: youtubeChannelId
-              })
-            }
-          }
+    // Emit parallel discovery events for all platforms
+    await Promise.all([
+      ctx.emit({
+        topic: 'competitor.discover.instagram',
+        data: {
+          creatorId,
+          niche: profileNiche
         }
-      } else {
-        ctx.logger.warn('DiscoverCompetitors: YouTube profile found but no handle', {
-          hasUrl: !!youtubeProfile.url
-        })
-      }
-    } else {
-      ctx.logger.warn('DiscoverCompetitors: No YouTube profile found in creator socials', {
-        socialsCount: creatorProfile?.socials?.length || 0
-      })
-    }
-
-    let facebookFollowers = facebookProfile?.followers || 0
-    const facebookPageId = facebookProfile?.handle || process.env.FB_PAGE_ID
-
-    let youtubeSubscribers = 0
-    const youtubeApiKey = process.env.YOUTUBE_API_KEY
-    
-    ctx.logger.info('DiscoverCompetitors: API key check', {
-      hasApiKey: !!youtubeApiKey,
-      apiKeyLength: youtubeApiKey?.length || 0,
-      hasChannelId: !!youtubeChannelId,
-      channelId: youtubeChannelId,
-      youtubeHandle: youtubeProfile?.handle
-    })
-    
-    if (!youtubeChannelId && youtubeProfile?.handle && youtubeApiKey) {
-      if (youtubeProfile.handle.startsWith('@') || !youtubeProfile.handle.startsWith('UC')) {
-        ctx.logger.info('DiscoverCompetitors: Converting YouTube handle to channel ID', {
-          handle: youtubeProfile.handle
-        })
-        youtubeChannelId = await convertHandleToChannelId(
-          youtubeProfile.handle,
-          youtubeApiKey,
-          ctx.logger
-        )
-        if (youtubeChannelId) {
-          ctx.logger.info('DiscoverCompetitors: Successfully converted handle to channel ID', {
-            handle: youtubeProfile.handle,
-            channelId: youtubeChannelId
-          })
-        } else {
-          ctx.logger.warn('DiscoverCompetitors: Failed to convert handle to channel ID', {
-            handle: youtubeProfile.handle
-          })
+      }),
+      ctx.emit({
+        topic: 'competitor.discover.facebook',
+        data: {
+          creatorId,
+          niche: profileNiche
         }
-      }
-    }
-    
-    if (youtubeChannelId && youtubeApiKey) {
-      try {
-        youtubeSubscribers = await fetchCreatorYouTubeSubscribers(
-          youtubeChannelId,
-          youtubeApiKey,
-          ctx.logger
-        )
-        ctx.logger.info('DiscoverCompetitors: Fetched YouTube subscribers from API', {
-          channelId: youtubeChannelId,
-          subscribers: youtubeSubscribers
-        })
-      } catch (error) {
-        ctx.logger.warn('DiscoverCompetitors: Failed to fetch YouTube subscribers', {
-          channelId: youtubeChannelId,
-          error: error instanceof Error ? error.message : String(error)
-        })
-      }
-    } else {
-      ctx.logger.warn('DiscoverCompetitors: YouTube channel ID or API key not available', {
-        hasChannelId: !!youtubeChannelId,
-        hasApiKey: !!youtubeApiKey,
-        youtubeHandle: youtubeProfile?.handle
+      }),
+      ctx.emit({
+        topic: 'competitor.discover.youtube',
+        data: {
+          creatorId,
+          niche: profileNiche,
+          creatorSubscribers
+        }
       })
-    }
+    ])
 
-    ctx.logger.info('DiscoverCompetitors: Creator profile loaded', {
+    ctx.logger.info('DiscoverCompetitors: Dispatched parallel platform discovery', {
       creatorId,
-      hasProfile: !!creatorProfile,
-      niche,
-      facebookFollowers,
-      youtubeSubscribers,
-      youtubeChannelId
+      niche: profileNiche,
+      creatorSubscribers
     })
 
-    // Update creator metadata with profile info
-    const updatedMetadata = {
-      ...state.creatorMetadata,
-      niche: niche,
-      category: state.creatorMetadata.category || 'general',
-      platformsConnected: [
-        ...(facebookFollowers > 0 ? ['facebook' as Platform] : []),
-        ...(youtubeSubscribers > 0 ? ['youtube' as Platform] : [])
-      ] as Platform[]
-    }
-
-    const allCompetitors: Competitor[] = []
-
-    // Discover Facebook competitors
-    if (facebookFollowers > 0 && updatedMetadata.platformsConnected.includes('facebook')) {
-      const fbToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_TOKEN
-      if (fbToken) {
-        const fbCompetitors = await discoverFacebookCompetitors(
-          creatorProfile,
-          facebookFollowers,
-          fbToken,
-          ctx.logger
-        )
-        allCompetitors.push(...fbCompetitors)
-        ctx.logger.info('DiscoverCompetitors: Facebook competitors found', {
-          count: fbCompetitors.length
-        })
-      } else {
-        ctx.logger.warn('DiscoverCompetitors: Facebook token not available, skipping Facebook discovery')
-      }
-    }
-
-    // Discover YouTube competitors using niche
-    if (youtubeSubscribers > 0 && updatedMetadata.platformsConnected.includes('youtube')) {
-      if (youtubeApiKey) {
-        const ytCompetitors = await discoverYouTubeCompetitors(
-          niche,
-          youtubeSubscribers,
-          youtubeApiKey,
-          ctx.logger
-        )
-        allCompetitors.push(...ytCompetitors)
-        ctx.logger.info('DiscoverCompetitors: YouTube competitors found', {
-          count: ytCompetitors.length,
-          niche
-        })
-      } else {
-        ctx.logger.warn('DiscoverCompetitors: YouTube API key not available, skipping YouTube discovery')
-      }
-    }
-
-    // Remove duplicates (by platform + external_id)
-    const uniqueCompetitors = Array.from(
-      new Map(allCompetitors.map(c => [`${c.platform}:${c.external_id}`, c])).values()
-    )
-
-    // Update state with discovered competitors
-    const updatedState: CompetitorBenchmarkingState = {
-      ...state,
-      creatorMetadata: updatedMetadata,
-      competitors: uniqueCompetitors,
-      updated_at: new Date().toISOString()
-    }
-
-    await ctx.state.set('competitorBenchmarking', creatorId, updatedState)
-
-    // Emit event to fetch competitor content
-    await ctx.emit({
-      topic: 'competitor.content.fetch',
-      data: {
-        creatorId,
-        competitors: uniqueCompetitors
-      }
-    })
-
-    ctx.logger.info('DiscoverCompetitors: Competitor discovery completed', {
-      creatorId,
-      competitorCount: uniqueCompetitors.length,
-      facebookCount: uniqueCompetitors.filter(c => c.platform === 'facebook').length,
-      youtubeCount: uniqueCompetitors.filter(c => c.platform === 'youtube').length,
-      competitors: uniqueCompetitors.map(c => ({
-        platform: c.platform,
-        name: c.name,
-        channelId: c.external_id,
-        subscribers: c.follower_count.toLocaleString()
-      }))
-    })
   } catch (error) {
-    ctx.logger.error('DiscoverCompetitors: Failed', {
+    ctx.logger.error('DiscoverCompetitors: Failed to dispatch parallel discovery', {
       creatorId,
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
     })
-
-    // Update state to failed
-    const state = await ctx.state.get<CompetitorBenchmarkingState>(
-      'competitorBenchmarking',
-      creatorId
-    )
-    if (state) {
-      const failedState: CompetitorBenchmarkingState = {
-        ...state,
-        status: 'failed',
-        updated_at: new Date().toISOString()
-      }
-      await ctx.state.set('competitorBenchmarking', creatorId, failedState)
-    }
   }
 }
-

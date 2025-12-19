@@ -8,7 +8,7 @@ export const config: ApiRouteConfig = {
   path: '/competitor/analyze',
   method: 'POST',
   description: 'Triggers competitor benchmarking workflow for a creator',
-  emits: ['competitor.discover'],
+  emits: ['competitor.discover.instagram', 'competitor.discover.facebook', 'competitor.discover.youtube'],
   flows: ['competitor-benchmarking'],
   bodySchema: z.object({
     creatorId: z.string().min(1, 'creatorId is required'),
@@ -105,14 +105,23 @@ export const handler: Handlers['CompetitorAnalyze'] = async (req, ctx) => {
 
     // Fetch creator profile to get niche if available
     const creatorProfile = await ctx.state.get('creatorProfiles', creatorId)
-    const profileNiche = creatorProfile ? ((creatorProfile as any).niche || (creatorProfile as any).category) : undefined
-    
+    const profileNiche = creatorProfile ? ((creatorProfile as any).niche || (creatorProfile as any).category) : 'tech'
+    const creatorSubscribers = creatorProfile?.socials?.find((s: any) => s.platform === 'youtube')?.followers || 1
+
+    ctx.logger.info('CompetitorAnalyze: Creator profile data', {
+      creatorId,
+      hasProfile: !!creatorProfile,
+      profileNiche,
+      creatorSubscribers,
+      profileData: creatorProfile ? JSON.stringify(creatorProfile, null, 2) : 'no profile'
+    })
+
     // Initialize or update state to 'running'
     const now = new Date().toISOString()
     const initialState: CompetitorBenchmarkingState = {
       creatorMetadata: {
         creatorId,
-        niche: profileNiche || 'tech',
+        niche: profileNiche,
         category: undefined,
         platformsConnected: undefined
       },
@@ -125,13 +134,31 @@ export const handler: Handlers['CompetitorAnalyze'] = async (req, ctx) => {
 
     await ctx.state.set('competitorBenchmarking', creatorId, initialState)
 
-    // Emit event to start the workflow
-    await ctx.emit({
-      topic: 'competitor.discover',
-      data: {
-        creatorId
-      }
+    // Emit parallel discovery events for all platforms
+    const emitData = {
+      instagram: { creatorId, niche: profileNiche },
+      facebook: { creatorId, niche: profileNiche },
+      youtube: { creatorId, niche: profileNiche, creatorSubscribers }
+    }
+
+    ctx.logger.info('CompetitorAnalyze: Emitting parallel discovery events', {
+      emitData: JSON.stringify(emitData, null, 2)
     })
+
+    await Promise.all([
+      ctx.emit({
+        topic: 'competitor.discover.instagram',
+        data: emitData.instagram
+      }),
+      ctx.emit({
+        topic: 'competitor.discover.facebook',
+        data: emitData.facebook
+      }),
+      ctx.emit({
+        topic: 'competitor.discover.youtube',
+        data: emitData.youtube
+      })
+    ])
 
     ctx.logger.info('CompetitorAnalyze: Workflow started', {
       creatorId,

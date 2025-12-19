@@ -4,7 +4,7 @@
 
 export type BenchmarkingStatus = 'idle' | 'running' | 'completed' | 'failed'
 
-export type Platform = 'facebook' | 'youtube'
+export type Platform = 'facebook' | 'youtube' | 'instagram'
 
 export interface FacebookPost {
   post_id: string
@@ -25,11 +25,23 @@ export interface YouTubeVideo {
   title?: string
 }
 
+export interface InstagramPost {
+  post_id: string
+  timestamp: string
+  contentType: 'reel' | 'post'
+  likeCount: number
+  commentCount: number
+  playCount?: number // For reels
+  caption?: string
+  hashtags?: string[]
+}
+
 export interface CompetitorContent {
   platform: Platform
   external_id: string
   facebook_posts?: FacebookPost[]
   youtube_videos?: YouTubeVideo[]
+  instagram_posts?: InstagramPost[]
 }
 
 export interface CompetitorMetrics {

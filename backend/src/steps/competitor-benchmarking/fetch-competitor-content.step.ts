@@ -1,5 +1,6 @@
 import type { EventConfig, Handlers } from 'motia'
-import type { CompetitorBenchmarkingState, Competitor, FacebookPost, YouTubeVideo } from './types'
+import type { CompetitorBenchmarkingState, Competitor, FacebookPost, YouTubeVideo, InstagramPost } from './types'
+import { runApifyActor, isApifyConfigured } from '../../lib/competitor-benchmarking/apifyClient.js'
 
 export const config: EventConfig = {
   type: 'event',
@@ -30,53 +31,349 @@ export const config: EventConfig = {
 }
 
 /**
- * Fetch Facebook posts from last 30 days
+ * Fetch Instagram posts from last 30 days using Apify
  */
-async function fetchFacebookPosts(
-  pageId: string,
-  token: string,
+async function fetchInstagramPosts(
+  username: string,
   logger: any
-): Promise<FacebookPost[]> {
-  const posts: FacebookPost[] = []
-  const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000)
+): Promise<InstagramPost[]> {
+  const posts: InstagramPost[] = []
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+
+  if (!isApifyConfigured()) {
+    logger.warn('FetchInstagramPosts: Apify not configured, skipping Instagram content fetch')
+    return posts
+  }
 
   try {
-    const url = `https://graph.facebook.com/v18.0/${pageId}/posts?fields=id,created_time,type,likes.summary(true),comments.summary(true),shares&since=${thirtyDaysAgo}&limit=100&access_token=${token}`
-    
-    const response = await fetch(url)
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`Facebook API error: ${errorData.error?.message || response.statusText}`)
+    logger.info('FetchInstagramPosts: Starting content fetch', {
+      username
+    })
+
+    // Use Apify Instagram profile scraper to fetch posts
+    const actorInput = {
+      usernames: [username],
+      resultsType: 'posts',
+      resultsLimit: 5
     }
 
-    const data = await response.json()
-    
-    for (const post of data.data || []) {
-      const createdTime = new Date(post.created_time).getTime()
-      const thirtyDaysAgoTime = Date.now() - 30 * 24 * 60 * 60 * 1000
-      
-      // Filter to last 30 days
-      if (createdTime >= thirtyDaysAgoTime) {
-        posts.push({
-          post_id: post.id,
-          created_time: post.created_time,
-          post_type: (post.type || 'status') as 'photo' | 'video' | 'link' | 'status',
-          likes_count: post.likes?.summary?.total_count || 0,
-          comments_count: post.comments?.summary?.total_count || 0,
-          shares_count: post.shares?.count || 0
+    logger.info('FetchInstagramPosts: Calling Apify actor', {
+      actorId: 'apify/instagram-profile-scraper',
+      input: JSON.stringify(actorInput, null, 2)
+    })
+
+    const results = await runApifyActor<any>(
+      'apify/instagram-profile-scraper',
+      actorInput,
+      logger
+    )
+
+    // Log raw Apify response for debugging
+    logger.info('FetchInstagramPosts: Raw Apify response received', {
+      username,
+      resultCount: results?.length || 0,
+      hasResults: !!results && results.length > 0,
+      sampleResult: results && results.length > 0 ? {
+        keys: Object.keys(results[0]),
+        sample: JSON.stringify(results[0], null, 2)
+      } : null,
+      allResults: results ? results.map((item: any, idx: number) => ({
+        index: idx + 1,
+        keys: Object.keys(item),
+        data: JSON.stringify(item, null, 2)
+      })) : []
+    })
+
+    if (!results || results.length === 0) {
+      logger.warn('FetchInstagramPosts: No results from Apify', {
+        username,
+        actorInput
+      })
+      return posts
+    }
+
+    logger.info('FetchInstagramPosts: Processing results', {
+      username,
+      resultCount: results.length,
+      thirtyDaysAgo: new Date(thirtyDaysAgo).toISOString()
+    })
+
+    // Filter and transform results
+    for (const item of results) {
+      try {
+        logger.debug('FetchInstagramPosts: Processing raw item', {
+          username,
+          itemKeys: Object.keys(item),
+          itemData: JSON.stringify(item, null, 2)
         })
+
+        // Extract timestamp (handle different possible formats)
+        let timestamp: number | null = null
+        if (item.timestamp) {
+          timestamp = typeof item.timestamp === 'number' 
+            ? item.timestamp * 1000 // Convert seconds to milliseconds if needed
+            : new Date(item.timestamp).getTime()
+        } else if (item.createdAt) {
+          timestamp = new Date(item.createdAt).getTime()
+        } else if (item.created_time) {
+          timestamp = new Date(item.created_time).getTime()
+        }
+
+        logger.debug('FetchInstagramPosts: Timestamp extraction', {
+          username,
+          itemId: item.id || item.postId || 'unknown',
+          timestampRaw: item.timestamp || item.createdAt || item.created_time || 'not found',
+          timestampParsed: timestamp ? new Date(timestamp).toISOString() : null,
+          thirtyDaysAgo: new Date(thirtyDaysAgo).toISOString(),
+          isWithinRange: timestamp ? timestamp >= thirtyDaysAgo : false
+        })
+
+        if (!timestamp || timestamp < thirtyDaysAgo) {
+          logger.debug('FetchInstagramPosts: Post filtered out (date)', {
+            username,
+            itemId: item.id || item.postId || 'unknown',
+            timestamp: timestamp ? new Date(timestamp).toISOString() : 'unknown',
+            thirtyDaysAgo: new Date(thirtyDaysAgo).toISOString()
+          })
+          continue
+        }
+
+        // Determine content type
+        const isVideo = item.isVideo || item.type === 'video' || item.isReel || item.type === 'reel'
+        const contentType: 'reel' | 'post' = isVideo ? 'reel' : 'post'
+
+        // Extract engagement metrics
+        const likeCount = item.likeCount || item.likesCount || item.likes || 0
+        const commentCount = item.commentCount || item.commentsCount || item.comments || 0
+        const playCount = isVideo ? (item.playCount || item.videoViewCount || item.views || 0) : undefined
+
+        // Extract hashtags
+        const hashtags: string[] = []
+        if (item.hashtags && Array.isArray(item.hashtags)) {
+          hashtags.push(...item.hashtags)
+        } else if (item.caption) {
+          // Extract hashtags from caption
+          const hashtagRegex = /#[\w]+/g
+          const matches = item.caption.match(hashtagRegex)
+          if (matches) {
+            hashtags.push(...matches.map((h: string) => h.substring(1)))
+          }
+        }
+
+        posts.push({
+          post_id: item.id || item.postId || item.shortcode || '',
+          timestamp: new Date(timestamp).toISOString(),
+          contentType,
+          likeCount,
+          commentCount,
+          playCount,
+          caption: item.caption || item.text || '',
+          hashtags: hashtags.length > 0 ? hashtags : undefined
+        })
+
+        logger.debug('FetchInstagramPosts: Post processed', {
+          username,
+          postId: item.id || item.postId,
+          contentType,
+          likeCount,
+          commentCount,
+          playCount,
+          timestamp: new Date(timestamp).toISOString()
+        })
+      } catch (itemError) {
+        logger.warn('FetchInstagramPosts: Error processing item', {
+          username,
+          error: itemError instanceof Error ? itemError.message : String(itemError)
+        })
+        // Continue with next item
       }
     }
 
-    logger.info('FetchFacebookPosts: Fetched posts', {
+    logger.info('FetchInstagramPosts: Content fetch completed', {
+      username,
+      postCount: posts.length,
+      posts: posts.slice(0, 5).map(p => ({
+        contentType: p.contentType,
+        likeCount: p.likeCount,
+        commentCount: p.commentCount,
+        timestamp: p.timestamp
+      }))
+    })
+
+  } catch (error) {
+    logger.error('FetchInstagramPosts: Error', {
+      username,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    })
+    // Don't throw - return empty array to allow workflow to continue
+  }
+
+  return posts
+}
+
+/**
+ * Fetch Facebook posts from last 30 days using Apify
+ */
+async function fetchFacebookPosts(
+  pageId: string,
+  logger: any
+): Promise<FacebookPost[]> {
+  const posts: FacebookPost[] = []
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+
+  if (!isApifyConfigured()) {
+    logger.warn('FetchFacebookPosts: Apify not configured, skipping Facebook content fetch')
+    return posts
+  }
+
+  try {
+    logger.info('FetchFacebookPosts: Starting content fetch', {
+      pageId
+    })
+
+    // Use Apify Facebook posts scraper
+    const actorInput = {
+      pageIds: [pageId],
+      maxPosts: 5
+    }
+
+    logger.info('FetchFacebookPosts: Calling Apify actor', {
+      actorId: 'apify/facebook-posts-scraper',
+      input: JSON.stringify(actorInput, null, 2)
+    })
+
+    const results = await runApifyActor<any>(
+      'apify/facebook-posts-scraper',
+      actorInput,
+      logger
+    )
+
+    // Log raw Apify response for debugging
+    logger.info('FetchFacebookPosts: Raw Apify response received', {
       pageId,
-      postCount: posts.length
+      resultCount: results?.length || 0,
+      hasResults: !!results && results.length > 0,
+      sampleResult: results && results.length > 0 ? {
+        keys: Object.keys(results[0]),
+        sample: JSON.stringify(results[0], null, 2)
+      } : null,
+      allResults: results ? results.map((item: any, idx: number) => ({
+        index: idx + 1,
+        keys: Object.keys(item),
+        data: JSON.stringify(item, null, 2)
+      })) : []
+    })
+
+    if (!results || results.length === 0) {
+      logger.warn('FetchFacebookPosts: No results from Apify', {
+        pageId,
+        actorInput
+      })
+      return posts
+    }
+
+    logger.info('FetchFacebookPosts: Processing results', {
+      pageId,
+      resultCount: results.length,
+      thirtyDaysAgo: new Date(thirtyDaysAgo).toISOString()
+    })
+
+    // Filter and transform results
+    for (const item of results) {
+      try {
+        logger.debug('FetchFacebookPosts: Processing raw item', {
+          pageId,
+          itemKeys: Object.keys(item),
+          itemData: JSON.stringify(item, null, 2)
+        })
+
+        // Extract created time
+        let createdTime: number | null = null
+        if (item.createdTime) {
+          createdTime = new Date(item.createdTime).getTime()
+        } else if (item.created_time) {
+          createdTime = new Date(item.created_time).getTime()
+        } else if (item.timestamp) {
+          createdTime = typeof item.timestamp === 'number'
+            ? item.timestamp * 1000
+            : new Date(item.timestamp).getTime()
+        }
+
+        logger.debug('FetchFacebookPosts: Timestamp extraction', {
+          pageId,
+          itemId: item.id || item.postId || 'unknown',
+          timestampRaw: item.createdTime || item.created_time || item.timestamp || 'not found',
+          timestampParsed: createdTime ? new Date(createdTime).toISOString() : null,
+          thirtyDaysAgo: new Date(thirtyDaysAgo).toISOString(),
+          isWithinRange: createdTime ? createdTime >= thirtyDaysAgo : false
+        })
+
+        if (!createdTime || createdTime < thirtyDaysAgo) {
+          logger.debug('FetchFacebookPosts: Post filtered out (date)', {
+            pageId,
+            itemId: item.id || item.postId || 'unknown',
+            createdTime: createdTime ? new Date(createdTime).toISOString() : 'unknown',
+            thirtyDaysAgo: new Date(thirtyDaysAgo).toISOString()
+          })
+          continue
+        }
+
+        // Determine post type
+        const postType = item.type || item.postType || 'status'
+        const normalizedPostType = ['photo', 'video', 'link', 'status'].includes(postType)
+          ? (postType as 'photo' | 'video' | 'link' | 'status')
+          : 'status'
+
+        // Extract engagement metrics
+        const reactionsCount = item.reactionsCount || item.reactions || item.likes || 0
+        const commentsCount = item.commentsCount || item.comments || 0
+        const sharesCount = item.sharesCount || item.shares || 0
+
+        posts.push({
+          post_id: item.id || item.postId || '',
+          created_time: new Date(createdTime).toISOString(),
+          post_type: normalizedPostType,
+          likes_count: reactionsCount,
+          comments_count: commentsCount,
+          shares_count: sharesCount
+        })
+
+        logger.debug('FetchFacebookPosts: Post processed', {
+          pageId,
+          postId: item.id || item.postId,
+          postType: normalizedPostType,
+          reactionsCount,
+          commentsCount,
+          sharesCount,
+          createdTime: new Date(createdTime).toISOString()
+        })
+      } catch (itemError) {
+        logger.warn('FetchFacebookPosts: Error processing item', {
+          pageId,
+          error: itemError instanceof Error ? itemError.message : String(itemError)
+        })
+        // Continue with next item
+      }
+    }
+
+    logger.info('FetchFacebookPosts: Content fetch completed', {
+      pageId,
+      postCount: posts.length,
+      posts: posts.slice(0, 5).map(p => ({
+        postType: p.post_type,
+        likes: p.likes_count,
+        comments: p.comments_count,
+        shares: p.shares_count,
+        createdTime: p.created_time
+      }))
     })
 
   } catch (error) {
     logger.error('FetchFacebookPosts: Error', {
       pageId,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
     })
     // Don't throw - return empty array to allow workflow to continue
   }
@@ -97,7 +394,7 @@ async function fetchYouTubeVideos(
 
   try {
     // Search for videos uploaded in last 30 days
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&publishedAfter=${thirtyDaysAgo}&maxResults=50&order=date&key=${apiKey}`
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&publishedAfter=${thirtyDaysAgo}&maxResults=10&order=date&key=${apiKey}`
     
     const searchResponse = await fetch(searchUrl)
     if (!searchResponse.ok) {
@@ -113,8 +410,8 @@ async function fetchYouTubeVideos(
       return videos
     }
 
-    // Fetch video statistics in batch (max 50 per request)
-    const batchSize = 50
+    // Fetch video statistics in batch (max 10 per request)
+    const batchSize = 10
     for (let i = 0; i < videoIds.length; i += batchSize) {
       const batch = videoIds.slice(i, i + batchSize)
       const statsUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet&id=${batch.join(',')}&key=${apiKey}`
@@ -223,7 +520,6 @@ export const handler: Handlers['FetchCompetitorContent'] = async (input, ctx) =>
       return
     }
 
-    const fbToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_TOKEN
     const youtubeApiKey = process.env.YOUTUBE_API_KEY
 
     const updatedCompetitors: Competitor[] = []
@@ -231,18 +527,40 @@ export const handler: Handlers['FetchCompetitorContent'] = async (input, ctx) =>
     // Fetch content for each competitor
     for (const competitor of competitorsToFetch) {
       try {
-        if (competitor.platform === 'facebook') {
-          if (!fbToken) {
-            ctx.logger.warn('FetchCompetitorContent: Facebook token not available', {
-              competitorId: competitor.external_id
-            })
-            updatedCompetitors.push(competitor)
-            continue
-          }
+        // Validate required fields
+        if (!competitor.platform || !competitor.external_id) {
+          ctx.logger.warn('FetchCompetitorContent: Skipping competitor with missing required fields', {
+            competitor: competitor
+          })
+          updatedCompetitors.push(competitor as Competitor)
+          continue
+        }
 
+        if (competitor.platform === 'instagram') {
+          const posts = await fetchInstagramPosts(
+            competitor.external_id,
+            ctx.logger
+          )
+
+          updatedCompetitors.push({
+            ...competitor,
+            content: {
+              platform: 'instagram',
+              external_id: competitor.external_id,
+              instagram_posts: posts
+            }
+          } as Competitor)
+
+          ctx.logger.info('FetchCompetitorContent: Instagram content fetched', {
+            competitorId: competitor.external_id,
+            competitorName: competitor.name,
+            postCount: posts.length,
+            followerCount: (competitor.follower_count || 0).toLocaleString()
+          })
+
+        } else if (competitor.platform === 'facebook') {
           const posts = await fetchFacebookPosts(
             competitor.external_id,
-            fbToken,
             ctx.logger
           )
 
@@ -253,11 +571,13 @@ export const handler: Handlers['FetchCompetitorContent'] = async (input, ctx) =>
               external_id: competitor.external_id,
               facebook_posts: posts
             }
-          })
+          } as Competitor)
 
           ctx.logger.info('FetchCompetitorContent: Facebook content fetched', {
             competitorId: competitor.external_id,
-            postCount: posts.length
+            competitorName: competitor.name,
+            postCount: posts.length,
+            followerCount: (competitor.follower_count || 0).toLocaleString()
           })
 
         } else if (competitor.platform === 'youtube') {
@@ -265,7 +585,7 @@ export const handler: Handlers['FetchCompetitorContent'] = async (input, ctx) =>
             ctx.logger.warn('FetchCompetitorContent: YouTube API key not available', {
               competitorId: competitor.external_id
             })
-            updatedCompetitors.push(competitor)
+            updatedCompetitors.push(competitor as Competitor)
             continue
           }
 
@@ -282,13 +602,13 @@ export const handler: Handlers['FetchCompetitorContent'] = async (input, ctx) =>
               external_id: competitor.external_id,
               youtube_videos: videos
             }
-          })
+          } as Competitor)
 
               ctx.logger.info('FetchCompetitorContent: YouTube content fetched', {
                 competitorId: competitor.external_id,
                 competitorName: competitor.name,
                 videoCount: videos.length,
-                subscriberCount: competitor.follower_count.toLocaleString(),
+                subscriberCount: (competitor.follower_count || 0).toLocaleString(),
                 videoTitles: videos.slice(0, 5).map(v => ({
                   title: v.title || 'Untitled',
                   views: v.view_count.toLocaleString(),
@@ -297,7 +617,7 @@ export const handler: Handlers['FetchCompetitorContent'] = async (input, ctx) =>
               })
         } else {
           // Unknown platform, keep as-is
-          updatedCompetitors.push(competitor)
+          updatedCompetitors.push(competitor as Competitor)
         }
 
         // Small delay to respect rate limits
@@ -311,7 +631,7 @@ export const handler: Handlers['FetchCompetitorContent'] = async (input, ctx) =>
           error: error instanceof Error ? error.message : String(error)
         })
         // Still add competitor without content
-        updatedCompetitors.push(competitor)
+        updatedCompetitors.push(competitor as Competitor)
       }
     }
 
@@ -335,14 +655,16 @@ export const handler: Handlers['FetchCompetitorContent'] = async (input, ctx) =>
     ctx.logger.info('FetchCompetitorContent: Content fetch completed', {
       creatorId,
       competitorCount: updatedCompetitors.length,
-      totalPosts: updatedCompetitors.reduce((sum, c) => sum + (c.content?.facebook_posts?.length || 0), 0),
+      totalInstagramPosts: updatedCompetitors.reduce((sum, c) => sum + (c.content?.instagram_posts?.length || 0), 0),
+      totalFacebookPosts: updatedCompetitors.reduce((sum, c) => sum + (c.content?.facebook_posts?.length || 0), 0),
       totalVideos: updatedCompetitors.reduce((sum, c) => sum + (c.content?.youtube_videos?.length || 0), 0),
       competitors: updatedCompetitors.map(c => ({
         platform: c.platform,
         name: c.name,
         channelId: c.external_id,
         subscribers: c.follower_count.toLocaleString(),
-        posts: c.content?.facebook_posts?.length || 0,
+        instagramPosts: c.content?.instagram_posts?.length || 0,
+        facebookPosts: c.content?.facebook_posts?.length || 0,
         videos: c.content?.youtube_videos?.length || 0
       }))
     })
