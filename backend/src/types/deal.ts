@@ -59,6 +59,7 @@ export interface Deal {
         proposedBudget?: number
         agreedRate: number
         gst: number
+        tds?: number
         total: number
     }
 
