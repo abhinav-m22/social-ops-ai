@@ -8,23 +8,33 @@ import { ComparisonTable } from "@/components/competitor-benchmarking/Comparison
 import { MetricsCharts } from "@/components/competitor-benchmarking/MetricsCharts"
 import { AIInsightsPanel } from "@/components/competitor-benchmarking/AIInsightsPanel"
 import { StrategyCard } from "@/components/competitor-benchmarking/StrategyCard"
+import { PlatformTabs } from "@/components/competitor-benchmarking/PlatformTabs"
+import { PlatformCompetitorProfiles } from "@/components/competitor-benchmarking/PlatformCompetitorProfiles"
+import { PlatformContentList } from "@/components/competitor-benchmarking/PlatformContentList"
+import { PlatformMetricsSummary } from "@/components/competitor-benchmarking/PlatformMetricsSummary"
+import { PlatformAIInsights } from "@/components/competitor-benchmarking/PlatformAIInsights"
 import { exportToPDF } from "@/lib/competitor-benchmarking/pdfExport"
 
 const CREATOR_ID = "default-creator"
 
 type BenchmarkingStatus = 'idle' | 'running' | 'completed' | 'failed'
+type Platform = 'youtube' | 'instagram' | 'facebook'
 
 const CompetitorBenchmarkingPage = () => {
   const [state, setState] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
   const [status, setStatus] = useState<BenchmarkingStatus>('idle')
+  const [activePlatform, setActivePlatform] = useState<Platform>('youtube')
 
   const fetchState = useCallback(async () => {
     try {
       const data = await getCompetitorBenchmarking(CREATOR_ID)
       console.log('Fetched benchmarking data:', data)
       if (data.success && data.state) {
+        console.log('YouTube profiles:', data.state.profiles?.filter((p: any) => p.platform === 'youtube'))
+        console.log('YouTube content:', data.state.content?.filter((c: any) => c.platform === 'youtube'))
+        console.log('YouTube insights:', data.state.platform_insights?.youtube)
         setState(data.state)
         setStatus(data.state.status || 'idle')
       } else {
@@ -154,12 +164,38 @@ const CompetitorBenchmarkingPage = () => {
 
       {/* Status Banner */}
       {status === 'running' && (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 flex items-center gap-3">
-          <Loader2 className="animate-spin text-blue-600" size={20} />
-          <div className="flex-1">
-            <div className="font-semibold text-blue-900">{getStatusMessage()}</div>
-            <div className="text-sm text-blue-700 mt-0.5">This may take a few minutes...</div>
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="animate-spin text-blue-600" size={20} />
+            <div className="flex-1">
+              <div className="font-semibold text-blue-900">{getStatusMessage()}</div>
+              <div className="text-sm text-blue-700 mt-0.5">This may take a few minutes...</div>
+            </div>
           </div>
+          {state?.platform_status && (
+            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-blue-200">
+              {(['youtube', 'instagram', 'facebook'] as const).map((platform) => {
+                const platformStatus = state.platform_status[platform]
+                const isRunning = platformStatus === 'running'
+                const isCompleted = platformStatus === 'completed'
+                const isFailed = platformStatus === 'failed'
+                
+                return (
+                  <div key={platform} className="flex items-center gap-2 text-sm">
+                    {isRunning && <Loader2 className="animate-spin text-blue-600" size={14} />}
+                    {isCompleted && <CheckCircle2 className="text-emerald-600" size={14} />}
+                    {isFailed && <XCircle className="text-rose-600" size={14} />}
+                    {!isRunning && !isCompleted && !isFailed && (
+                      <div className="w-3.5 h-3.5 rounded-full bg-gray-300" />
+                    )}
+                    <span className="capitalize text-blue-800">
+                      {platform}: {platformStatus || 'pending'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -212,30 +248,79 @@ const CompetitorBenchmarkingPage = () => {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Comparison Table */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Performance Comparison</h2>
-            <ComparisonTable state={state} />
-          </section>
+          {/* Platform Tabs */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <PlatformTabs
+              activePlatform={activePlatform}
+              onPlatformChange={setActivePlatform}
+              platformStatus={state.platform_status}
+            />
+          </div>
 
-          {/* Charts */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Metrics Overview</h2>
-            <MetricsCharts state={state} />
-          </section>
+          {/* Platform-Specific Content */}
+          <>
+            {/* Platform Status Warning */}
+            {state.platform_status?.[activePlatform] === 'failed' && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3">
+                <AlertCircle className="text-amber-600" size={20} />
+                <div className="flex-1">
+                  <div className="font-semibold text-amber-900">Platform data incomplete</div>
+                  <div className="text-sm text-amber-700 mt-0.5">
+                    {activePlatform} data collection failed. Showing partial data if available.
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {/* AI Insights & Strategy */}
-          <div className="grid md:grid-cols-2 gap-6">
+            {state.platform_status?.[activePlatform] === 'running' && (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 flex items-center gap-3">
+                <Loader2 className="animate-spin text-blue-600" size={20} />
+                <div className="flex-1">
+                  <div className="font-semibold text-blue-900">Collecting {activePlatform} data...</div>
+                  <div className="text-sm text-blue-700 mt-0.5">This may take a few minutes.</div>
+                </div>
+              </div>
+            )}
+
+            {/* Competitor Profiles */}
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Competitor Profiles</h2>
+              <PlatformCompetitorProfiles
+                platform={activePlatform}
+                profiles={state.profiles || []}
+              />
+            </section>
+
+            {/* Metrics Summary */}
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Metrics Summary</h2>
+              <PlatformMetricsSummary
+                platform={activePlatform}
+                profiles={state.profiles || []}
+                content={state.content || []}
+                aiInsights={state.platform_insights?.[activePlatform]}
+              />
+            </section>
+
+            {/* Content List */}
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Content</h2>
+              <PlatformContentList
+                platform={activePlatform}
+                content={state.content || []}
+                profiles={state.profiles || []}
+              />
+            </section>
+
+            {/* Platform AI Insights */}
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">AI Insights</h2>
-              <AIInsightsPanel analysis={state.analysis_result} />
+              <PlatformAIInsights
+                platform={activePlatform}
+                insights={state.platform_insights?.[activePlatform]}
+              />
             </section>
-
-            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Optimal Strategy</h2>
-              <StrategyCard analysis={state.analysis_result} />
-            </section>
-          </div>
+          </>
         </div>
       )}
     </main>
