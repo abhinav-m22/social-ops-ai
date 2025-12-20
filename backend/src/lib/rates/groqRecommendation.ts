@@ -67,6 +67,7 @@ Provide 3 pricing tiers with strategic reasoning:
 3. Premium (ambitious but justifiable)
 
 Also analyze their proposed budget and recommend whether to accept, counter, or decline.
+CRITICAL: If the proposed budget is already near or above the "Market Rate", you MUST recommend "accept". Avoid greed if the offer is fair.
 
 Return ONLY valid JSON with shape:
 {

@@ -10,20 +10,20 @@ export const config = {
 
 export const handler = async (input, ctx) => {
     const { dealId, inquiryId, brand, status } = input
-    
+
     ctx.logger.info('='.repeat(80))
     ctx.logger.info(`Notifying creator about new deal: ${dealId}`)
     ctx.logger.info('='.repeat(80))
-    
+
     try {
         // Fetch deal details for notification
         const deal = await ctx.state.get('deals', dealId)
-        
+
         if (!deal) {
             ctx.logger.warn(`Deal ${dealId} not found for notification`)
             return
         }
-        
+
         // TODO: Send email/SMS notification to creator
         // For now, just log the notification
         ctx.logger.info('📧 Deal Created Notification', {
@@ -32,7 +32,7 @@ export const handler = async (input, ctx) => {
             status,
             creatorId: deal.creatorId
         })
-        
+
         // Store notification in state for future email/SMS integration
         await ctx.state.set('notifications', `notif-${dealId}`, {
             id: `notif-${dealId}`,
@@ -44,19 +44,35 @@ export const handler = async (input, ctx) => {
             createdAt: new Date().toISOString(),
             sent: false // Will be true when email/SMS is sent
         })
-        
+
+        // Push real-time notification
+        if (ctx.streams && ctx.streams.notifications) {
+            const notificationId = `notif-${dealId}-${Date.now()}`
+            await ctx.streams.notifications.set(
+                deal.creatorId, // Group by creator
+                notificationId,
+                {
+                    title: 'New Deal Received!',
+                    body: `You have a new inquiry from ${brand?.name || 'a brand'}.`,
+                    tone: 'success',
+                    dealId: dealId
+                }
+            )
+            ctx.logger.info('📡 Pushed real-time notification to stream', { dealId, notificationId })
+        }
+
         ctx.logger.info('✅ Notification logged', {
             dealId,
             notificationId: `notif-${dealId}`
         })
         ctx.logger.info('='.repeat(80))
-        
+
         return {
             success: true,
             dealId,
             notificationId: `notif-${dealId}`
         }
-        
+
     } catch (error) {
         ctx.logger.error('❌ Failed to notify creator', {
             dealId,

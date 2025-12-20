@@ -110,6 +110,15 @@ export const handler = async (input, ctx) => {
     const inquiry = (await ctx.state.get('inquiries', inquiryId)) || {}
     const deal = dealId ? await ctx.state.get('deals', dealId) : null
 
+    // Skip recalculation if deal is already finalized or active
+    if (deal && ['active', 'completed', 'FINALIZED'].includes(deal.status)) {
+        ctx.logger.info('RateCalculationWorkflow: Skip recalculation for finalized/active deal', {
+            dealId,
+            status: deal.status
+        })
+        return
+    }
+
     const brandDetails = {
         brandName: brandContext.brandName || deal?.brand?.name || inquiry?.brandName || 'Unknown Brand',
         deliverables: formatDeliverables(brandContext.deliverables, brandContext.platformOrContentType),
@@ -118,14 +127,31 @@ export const handler = async (input, ctx) => {
 
     const creatorMetrics = await getCreatorMetrics(creatorId, brandContext.platformOrContentType, ctx)
 
+    // Start streaming thinking status
+    if (ctx.streams && ctx.streams.analysis) {
+        await ctx.streams.analysis.set(inquiryId, 'status', {
+            status: 'thinking',
+            message: 'Initializing AI Auditor...',
+            progress: 10
+        })
+    }
+
     let apiResponse
     let status = 'success'
 
     try {
+        if (ctx.streams && ctx.streams.analysis) {
+            await ctx.streams.analysis.set(inquiryId, 'status', {
+                status: 'thinking',
+                message: 'Analyzing creator metrics & historical performance...',
+                progress: 30
+            })
+        }
+
         // Call the rate recommendation handler directly
         const result = await rateRecommendationHandler(
             {
-                body: { brandDetails, creatorMetrics },
+                body: { inquiryId, brandDetails, creatorMetrics },
                 headers: {},
                 query: {},
                 pathParams: {}
@@ -173,7 +199,7 @@ export const handler = async (input, ctx) => {
                 }
             } : null
         })
-        
+
     } catch (err) {
         status = 'calculator_failed'
         apiResponse = {
@@ -203,6 +229,15 @@ export const handler = async (input, ctx) => {
     }
 
     await ctx.state.set('recommendations', recommendationId, snapshot)
+
+    // Complete streaming thinking status
+    if (ctx.streams && ctx.streams.analysis) {
+        await ctx.streams.analysis.set(inquiryId, 'status', {
+            status: status === 'success' ? 'done' : 'failed',
+            message: status === 'success' ? 'Analysis complete!' : 'Analysis failed.',
+            progress: 100
+        })
+    }
 
     await ctx.emit({
         topic: 'RateRecommendationGenerated',

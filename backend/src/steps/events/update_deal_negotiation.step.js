@@ -72,6 +72,12 @@ export const handler = async (input, ctx) => {
     // Persist update
     await ctx.state.set('deals', dealId, updatedDeal)
 
+    // Push to real-time stream
+    if (ctx.streams && ctx.streams.deals) {
+        await ctx.streams.deals.set('all-deals', dealId, updatedDeal)
+        ctx.logger.info('📡 Pushed AI assessment update to stream', { dealId })
+    }
+
     // Notify frontend
     await ctx.emit({
         topic: 'deal.updated',

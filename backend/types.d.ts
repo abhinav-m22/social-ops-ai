@@ -8,7 +8,9 @@ import { EventHandler, ApiRouteHandler, ApiResponse, MotiaStream, CronHandler } 
 
 declare module 'motia' {
   interface FlowContextStateStreams {
-    
+    'notifications': MotiaStream<{ title: string; body: string; tone?: 'success' | 'info' | 'warning'; dealId?: string }>
+    'deals': MotiaStream<{}>
+    'analysis': MotiaStream<{ status: string; progress?: number; message?: string }>
   }
 
   interface Handlers {
@@ -18,6 +20,7 @@ declare module 'motia' {
     'GetInvoices': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { success: boolean; invoices: Array<{ invoiceId: string; dealId: string; creatorId: string; status: 'draft' | 'awaiting_details' | 'sent'; invoiceNumber?: string; invoiceDate: string; dueDate: string; creatorSnapshot: unknown; brandSnapshot: { name?: string; email?: string; pocName?: string; gstin?: string; address?: string }; deliverables: Array<string>; campaignName?: string; amount: number; gstAmount?: number; tdsAmount?: number; netPayable?: number; missingFields?: Array<string>; createdAt: string; updatedAt: string }>; count: number }> | ApiResponse<500, { success: boolean; error: string }>, never>
     'GetInvoice': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { success: boolean; invoice: { invoiceId: string; dealId: string; creatorId: string; status: 'draft' | 'awaiting_details' | 'sent'; invoiceNumber?: string; invoiceDate: string; dueDate: string; creatorSnapshot: unknown; brandSnapshot: { name?: string; email?: string; pocName?: string; gstin?: string; address?: string }; deliverables: Array<string>; campaignName?: string; amount: number; gstAmount?: number; tdsAmount?: number; netPayable?: number; missingFields?: Array<string>; createdAt: string; updatedAt: string } }> | ApiResponse<404, { success: boolean; error: string }> | ApiResponse<500, { success: boolean; error: string }>, never>
     'CreateOrGetInvoiceDraft': EventHandler<{ dealId: string; creatorId?: string }, { topic: 'invoice.draft_created'; data: { invoiceId: string; dealId: string; creatorId?: string; status?: string; missingFields?: Array<unknown> } }>
+    'SendInvoiceEmail': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { success: boolean; message: string; emailId?: string; invoice: unknown }> | ApiResponse<400, { success: boolean; error: string }> | ApiResponse<404, { success: boolean; error: string }> | ApiResponse<500, { success: boolean; error: string }>, never>
     'GetInvoiceByDeal': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { success: boolean; invoice: { invoiceId: string; dealId: string; creatorId: string; status: 'draft' | 'awaiting_details' | 'sent'; invoiceNumber?: string; invoiceDate: string; dueDate: string; creatorSnapshot: unknown; brandSnapshot: { name?: string; email?: string; pocName?: string; gstin?: string; address?: string }; deliverables: Array<string>; campaignName?: string; amount: number; gstAmount?: number; tdsAmount?: number; netPayable?: number; missingFields?: Array<string>; createdAt: string; updatedAt: string } }> | ApiResponse<404, { success: boolean; error: string }> | ApiResponse<500, { success: boolean; error: string }>, never>
     'CreateOrGetInvoice': ApiRouteHandler<{ dealId: string; creatorId?: string }, ApiResponse<200, { success: boolean; status: 'created' | 'exists'; invoice: { invoiceId: string; dealId: string; creatorId: string; status: 'draft' | 'awaiting_details' | 'sent'; invoiceNumber?: string; invoiceDate: string; dueDate: string; creatorSnapshot: unknown; brandSnapshot: { name?: string; email?: string; pocName?: string; gstin?: string; address?: string }; deliverables: Array<string>; campaignName?: string; amount: number; gstAmount?: number; tdsAmount?: number; netPayable?: number; missingFields?: Array<string>; createdAt: string; updatedAt: string } }> | ApiResponse<400, { success: boolean; error: string }> | ApiResponse<404, { success: boolean; error: string }> | ApiResponse<500, { success: boolean; error: string }>, { topic: 'invoice.draft_created'; data: { invoiceId: string; dealId: string; creatorId?: string; status?: string; missingFields?: Array<unknown> } }>
     'UpdateDealNegotiation': EventHandler<never, { topic: 'deal.updated'; data: never }>
@@ -51,7 +54,6 @@ declare module 'motia' {
     'AIAnalysis': EventHandler<{ creatorId: string }, { topic: 'competitor.notify.creator'; data: { creatorId: string } }>
     'AggregateFinalInsights': EventHandler<{ creatorId: string }, never>
     'AggregateCompetitors': EventHandler<{ creatorId: string; platform: string; competitors?: Array<{ platform?: string; external_id?: string; name?: string; follower_count?: number }> }, { topic: 'competitor.content.fetch'; data: { creatorId: string; competitors?: Array<{ platform?: string; external_id?: string; name?: string; follower_count?: number }> } }>
-    'RateRecommendation': ApiRouteHandler<{ brandDetails: { brandName: string; deliverables: string; proposedBudget?: number | unknown }; creatorMetrics: { niche: string; followers: number; platform: 'instagram' | 'youtube' | 'facebook'; contentType: 'reel' | 'video' | 'post' | 'short'; country?: 'India' | 'US'; avgLikes: number; avgComments: number; avgShares: number; avgViews: number; postsLast30Days: number } }, unknown, never>
     'GetInquiries': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'FacebookWebhookVerify': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'FacebookWebhookEvent': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'message.received'; data: never }>
@@ -67,13 +69,13 @@ declare module 'motia' {
     'ExportFinancePDF': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'ExportFinanceExcel': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CreatorActions': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'ClearNotifications': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'LogGreeting': EventHandler<{ requestId: string; greeting: string; processedBy: string }, never>
     'HelloAPI': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; status: string; appName: string }>, { topic: 'process-greeting'; data: { timestamp: string; appName: string; greetingPrefix: string; requestId: string } }>
     'StoreInquiry': EventHandler<{ messageId: string; source: string; body: string; subject?: string; senderId?: string; sender?: unknown; isBrandInquiry: boolean; confidence?: number; reasoning?: string; keywords?: Array<unknown>; classifiedAt?: string }, { topic: 'inquiry.received'; data: { inquiryId: string; source: string; body: string; senderId?: string; threadKey?: string; sender?: { name?: string; platform?: string; id?: string } } }>
     'ExtractInquiry': EventHandler<{ inquiryId: string; source: string; body: string; senderId?: string; threadKey?: string; sender?: { name?: string; platform?: string; id?: string } }, { topic: 'inquiry.extracted'; data: { inquiryId: string; source: string; extracted: unknown; sender?: unknown } }>
     'ClassifyMessage': EventHandler<{ messageId: string; source: string; body: string; senderId?: string; sender?: { name?: unknown; platform?: string; id?: string }; subject?: unknown; pageName?: unknown }, { topic: 'message.classified'; data: { messageId: string; source: string; body: string; subject?: string; senderId?: string; sender?: unknown; isBrandInquiry: boolean; confidence?: number; reasoning?: string; keywords?: Array<unknown>; classifiedAt?: string } }>
     'ProcessGreeting': EventHandler<{ timestamp: string; appName: string; greetingPrefix: string; requestId: string }, { topic: 'greeting-processed'; data: { requestId: string; greeting: string; processedBy: string } }>
-    'SendInvoiceEmail': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { success: boolean; message: string; emailId?: string; invoice: unknown }> | ApiResponse<400, { success: boolean; error: string }> | ApiResponse<404, { success: boolean; error: string }> | ApiResponse<500, { success: boolean; error: string }>, never>
   }
     
 }

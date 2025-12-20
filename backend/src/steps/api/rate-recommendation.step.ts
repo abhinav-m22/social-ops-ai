@@ -5,11 +5,12 @@ import {
     type BaselineInput,
     type EngagementInput,
     type ReachConsistencyInput
-} from '../../lib/rates/calculators'
-import { fetchMarketRates } from '../../lib/market/perplexity'
-import { generateRateRecommendation } from '../../lib/rates/groqRecommendation'
+} from '../../lib/rates/calculators.js'
+import { fetchMarketRates } from '../../lib/market/perplexity.js'
+import { generateRateRecommendation } from '../../lib/rates/groqRecommendation.js'
 
 const requestSchema = z.object({
+    inquiryId: z.string().optional(),
     brandDetails: z.object({
         brandName: z.string(),
         deliverables: z.string(),
@@ -40,7 +41,7 @@ const fallbackRecommendation = (
     let decision: 'accept' | 'counter' | 'decline' = 'counter'
     if (proposedBudget == null) {
         decision = 'counter'
-    } else if (proposedBudget >= premiumRate) {
+    } else if (proposedBudget >= marketRate) {
         decision = 'accept'
     } else if (proposedBudget >= conservativeRate) {
         decision = 'counter'
@@ -95,7 +96,16 @@ export const handler = async (req: any, ctx: any) => {
         }
     }
 
-    const { brandDetails, creatorMetrics } = parsed.data
+    const { brandDetails, creatorMetrics, inquiryId } = parsed.data
+
+    if (inquiryId && ctx.streams && ctx.streams.analysis) {
+        await ctx.streams.analysis.set(inquiryId, 'status', {
+            status: 'thinking',
+            message: 'Scanning market rates via Perplexity...',
+            progress: 50
+        })
+    }
+
     const normalizedBrand = {
         brandName: brandDetails.brandName,
         deliverables: brandDetails.deliverables,
@@ -137,6 +147,14 @@ export const handler = async (req: any, ctx: any) => {
         },
         { state: ctx.state, logger: ctx.logger }
     )
+
+    if (inquiryId && ctx.streams && ctx.streams.analysis) {
+        await ctx.streams.analysis.set(inquiryId, 'status', {
+            status: 'thinking',
+            message: 'Synthesizing final recommendation with Groq LLM...',
+            progress: 80
+        })
+    }
     if (marketData) {
         ctx.logger.info('RateRecommendation: market data resolved', {
             min: marketData.min,

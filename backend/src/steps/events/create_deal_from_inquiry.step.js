@@ -94,20 +94,20 @@ export const handler = async (input, ctx) => {
         if (!existingDeal && source === 'email' && sender?.id && normalizedSubject) {
             const thirtyDaysAgo = new Date()
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-            
+
             existingDeal = (allDeals || []).find((d) => {
                 if (d.platform !== 'email') return false
                 if (['completed', 'cancelled', 'declined'].includes((d.status || '').toLowerCase())) return false
                 if (d.brandId !== sender.id) return false
-                
+
                 const dealCreated = new Date(d.timeline?.dealCreated || d.timeline?.inquiryReceived || 0)
                 if (dealCreated < thirtyDaysAgo) return false
-                
+
                 const dealSubject = d.brand?.emailSubject || ''
                 const dealNormalizedSubject = normalizeSubject(dealSubject)
                 return dealNormalizedSubject === normalizedSubject
             })
-            
+
             if (existingDeal) {
                 ctx.logger.info('Found existing email deal by subject matching', {
                     dealId: existingDeal.dealId,
@@ -171,10 +171,10 @@ export const handler = async (input, ctx) => {
                 ctx.logger.info(`Merged proposed budget: No new budget found, keeping existing.`, { oldBudget: existingDeal.terms?.proposedBudget });
             }
 
-            const budgetChanged = proposedBudget !== undefined && proposedBudget !== null && 
-                                 proposedBudget !== existingDeal.terms?.proposedBudget
-            const deliverablesChanged = deliverables && deliverables.length > 0 && 
-                                       JSON.stringify(mergedDeliverables) !== JSON.stringify(existingDeal.terms?.deliverables)
+            const budgetChanged = proposedBudget !== undefined && proposedBudget !== null &&
+                proposedBudget !== existingDeal.terms?.proposedBudget
+            const deliverablesChanged = deliverables && deliverables.length > 0 &&
+                JSON.stringify(mergedDeliverables) !== JSON.stringify(existingDeal.terms?.deliverables)
 
             const previousDeliverables = existingDeal.terms?.deliverables || []
             const previousBudget = existingDeal.terms?.proposedBudget
@@ -198,8 +198,8 @@ export const handler = async (input, ctx) => {
             const updatedDeal = {
                 ...existingDeal,
                 inquiryId,
-                message: inquiry.body || inquiry.raw?.body || existingDeal.message || '', 
-                rawInquiry: inquiry.body || inquiry.raw?.body || existingDeal.rawInquiry || '', 
+                message: inquiry.body || inquiry.raw?.body || existingDeal.message || '',
+                rawInquiry: inquiry.body || inquiry.raw?.body || existingDeal.rawInquiry || '',
                 extractedData: extracted,
                 brand: updatedBrand,
                 terms: {
@@ -238,6 +238,12 @@ export const handler = async (input, ctx) => {
 
             await ctx.state.set('deals', dealId, updatedDeal)
 
+            // Push to real-time stream
+            if (ctx.streams && ctx.streams.deals) {
+                await ctx.streams.deals.set('all-deals', dealId, updatedDeal)
+                ctx.logger.info('📡 Pushed updated deal to stream', { dealId })
+            }
+
             ctx.logger.info('Updated deal with new inquiry data', {
                 dealId,
                 hasMessage: !!updatedDeal.message,
@@ -253,7 +259,7 @@ export const handler = async (input, ctx) => {
             await ctx.state.set('inquiries', inquiryId, inquiry)
 
             const isFinalized = ['active', 'completed', 'declined', 'cancelled', 'FINALIZED'].includes(existingDeal.status?.toUpperCase() || '')
-            
+
             if ((budgetChanged || deliverablesChanged) && !isFinalized) {
                 ctx.logger.info('Key deal terms changed, updating brand context for rate recalculation', {
                     dealId,
@@ -261,7 +267,7 @@ export const handler = async (input, ctx) => {
                     deliverablesChanged,
                     currentStatus: existingDeal.status
                 })
-                
+
                 const existingContext = await ctx.state.get('brandContexts', inquiryId) || {}
                 const platformGuess = deliverables.length > 0 ? (() => {
                     const type = (deliverables[0]?.type || '').toLowerCase()
@@ -383,18 +389,18 @@ export const handler = async (input, ctx) => {
                     type: del.type || 'other',
                     count: del.count || 1,
                     description: del.description || '',
-                    dueDate: '', 
+                    dueDate: '',
                     status: 'pending'
                 })),
                 proposedBudget: proposedBudget || null,
-                agreedRate: 0, 
+                agreedRate: 0,
                 gst: 0,
                 total: 0
             },
 
             timeline: {
                 inquiryReceived: inquiry.receivedAt || createdAt,
-                ratesCalculated: null, 
+                ratesCalculated: null,
                 dealCreated: createdAt,
                 autoReplySent: confidence.level === 'high' ? createdAt : null
             },
@@ -457,6 +463,12 @@ export const handler = async (input, ctx) => {
         }
 
         await ctx.state.set('deals', dealId, deal)
+
+        // Push to real-time stream
+        if (ctx.streams && ctx.streams.deals) {
+            await ctx.streams.deals.set('all-deals', dealId, deal)
+            ctx.logger.info('📡 Pushed new deal to stream', { dealId })
+        }
 
         ctx.logger.info('✅ Deal created and stored', {
             dealId,
