@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { triggerCompetitorAnalysis, getCompetitorBenchmarking } from "@/lib/api"
-import { Loader2, TrendingUp, Download, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import { Loader2, TrendingUp, Download, CheckCircle2, XCircle, AlertCircle, Users } from "lucide-react"
 import toast from "react-hot-toast"
 import { ComparisonTable } from "@/components/competitor-benchmarking/ComparisonTable"
 import { MetricsCharts } from "@/components/competitor-benchmarking/MetricsCharts"
@@ -14,7 +14,10 @@ import { PlatformContentList } from "@/components/competitor-benchmarking/Platfo
 import { PlatformMetricsSummary } from "@/components/competitor-benchmarking/PlatformMetricsSummary"
 import { PlatformAIInsights } from "@/components/competitor-benchmarking/PlatformAIInsights"
 import { exportToPDF } from "@/lib/competitor-benchmarking/pdfExport"
+import { ShimmerButton } from "@/components/ui/shimmer-button"
+import { AnimatedGradientText } from "@/components/ui/animated-gradient-text"
 import { AppLayout } from "@/components/AppLayout"
+import { cn } from "@/lib/utils"
 
 const CREATOR_ID = "default-creator"
 
@@ -124,128 +127,228 @@ const CompetitorBenchmarkingPage = () => {
 
   return (
     <AppLayout>
-      <header className="flex items-center justify-between flex-wrap gap-4 mb-8">
-        <div>
-          <div className="text-sm text-emerald-700 font-semibold flex items-center gap-2 mb-1 bg-emerald-50 w-fit px-3 py-1 rounded-full border border-emerald-100">
-            <TrendingUp size={14} /> Competitor Benchmarking
+      <header className="relative flex items-center justify-between flex-wrap gap-8 mb-12 py-8 border-b border-slate-100">
+        <div className="space-y-4">
+          <AnimatedGradientText className="w-fit ml-0">
+            🚀 <hr className="mx-2 h-4 w-[1px] shrink-0 bg-slate-300" />{" "}
+            <span className={cn("animate-gradient inline bg-gradient-to-r from-indigo-600 via-cyan-600 to-amber-600 bg-[length:var(--bg-size)_100%] bg-clip-text text-transparent")}>
+              Competitor Intelligence
+            </span>
+          </AnimatedGradientText>
+
+          <div>
+            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+              See how you{" "}
+              <span className="bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+                stack up
+              </span>
+            </h1>
+            <p className="text-slate-500 mt-2 text-lg max-w-2xl">
+              Real-time benchmarking against similar creators. Leverage AI to find your competitive edge.
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Competitor Analysis</h1>
-          <p className="text-gray-500 mt-1 text-lg">Compare your performance against competitors and get AI-powered insights.</p>
+
+          {(status === 'completed' || status === 'running') && (
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-500 bg-slate-50 w-fit px-3 py-1.5 rounded-full border border-slate-100">
+              <span className="relative flex h-2 w-2">
+                <span className={cn(
+                  "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                  status === 'running' ? "bg-amber-400" : "bg-indigo-400"
+                )}></span>
+                <span className={cn(
+                  "relative inline-flex rounded-full h-2 w-2",
+                  status === 'running' ? "bg-amber-500" : "bg-indigo-500"
+                )}></span>
+              </span>
+              Last updated: {state?.last_run_at ? new Date(state.last_run_at).toLocaleTimeString() : 'Never'}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex items-center gap-4">
           {state?.status === 'completed' && (
             <button
               onClick={handleExport}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white text-gray-700 px-5 py-2.5 text-sm font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+              className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white text-slate-700 px-6 py-3 text-sm font-semibold shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
             >
-              <Download size={18} /> Export Report
+              <Download size={18} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+              Export Report
             </button>
           )}
-          <button
+
+          <ShimmerButton
             onClick={() => handleAnalyze(status === 'running')}
             disabled={analyzing || (status === 'running' && !state)}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-medium shadow-lg shadow-emerald-600/10 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            className="shadow-xl"
           >
-            {analyzing ? (
-              <>
-                <Loader2 className="animate-spin" size={18} /> Starting...
-              </>
-            ) : status === 'running' ? (
-              <>
-                <Loader2 className="animate-spin" size={18} /> Restart Analysis
-              </>
-            ) : (
-              <>
-                <TrendingUp size={18} /> Analyze Competition
-              </>
-            )}
-          </button>
+            <span className="whitespace-pre-wrap text-center text-sm font-bold leading-none tracking-tight text-white lg:text-base flex items-center gap-2">
+              {analyzing ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} /> Starting...
+                </>
+              ) : status === 'running' ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} /> Refresh Analysis
+                </>
+              ) : (
+                <>
+                  <TrendingUp size={18} /> Analyze Competition
+                </>
+              )}
+            </span>
+          </ShimmerButton>
         </div>
       </header>
 
       {/* Status Banner */}
       {status === 'running' && (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Loader2 className="animate-spin text-blue-600" size={20} />
-            <div className="flex-1">
-              <div className="font-semibold text-blue-900">{getStatusMessage()}</div>
-              <div className="text-sm text-blue-700 mt-0.5">This may take a few minutes...</div>
+        <div className="mb-12 group relative rounded-[2rem] border border-blue-100 bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/30 p-8 shadow-sm overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
+            <div className="flex items-center gap-4 flex-1">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center relative">
+                <Loader2 className="animate-spin text-blue-600" size={28} />
+                <div className="absolute inset-x-0 bottom-0 h-1 bg-blue-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600 w-1/2 animate-shimmer"></div>
+                </div>
+              </div>
+              <div>
+                <div className="text-xl font-black text-blue-900 tracking-tight">{getStatusMessage()}</div>
+                <div className="text-blue-500 font-medium mt-1">Sourcing real-time metrics and applying AI models...</div>
+              </div>
             </div>
-          </div>
-          {state?.platform_status && (
-            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-blue-200">
-              {(['youtube', 'instagram', 'facebook'] as const).map((platform) => {
-                const platformStatus = state.platform_status[platform]
-                const isRunning = platformStatus === 'running'
-                const isCompleted = platformStatus === 'completed'
-                const isFailed = platformStatus === 'failed'
 
-                return (
-                  <div key={platform} className="flex items-center gap-2 text-sm">
-                    {isRunning && <Loader2 className="animate-spin text-blue-600" size={14} />}
-                    {isCompleted && <CheckCircle2 className="text-emerald-600" size={14} />}
-                    {isFailed && <XCircle className="text-rose-600" size={14} />}
-                    {!isRunning && !isCompleted && !isFailed && (
-                      <div className="w-3.5 h-3.5 rounded-full bg-gray-300" />
-                    )}
-                    <span className="capitalize text-blue-800">
-                      {platform}: {platformStatus || 'pending'}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+            {state?.platform_status && (
+              <div className="flex flex-wrap gap-4">
+                {(['youtube', 'instagram', 'facebook'] as const).map((platform) => {
+                  const platformStatus = state.platform_status[platform]
+                  const isRunning = platformStatus === 'running'
+                  const isCompleted = platformStatus === 'completed'
+                  const isFailed = platformStatus === 'failed'
+
+                  return (
+                    <div key={platform} className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-2xl border transition-all",
+                      isRunning ? "bg-white border-blue-200 text-blue-600 shadow-sm" :
+                        isCompleted ? "bg-emerald-50 border-emerald-100 text-emerald-700" :
+                          isFailed ? "bg-rose-50 border-rose-100 text-rose-700" :
+                            "bg-slate-50 border-slate-100 text-slate-400"
+                    )}>
+                      {isRunning && <Loader2 className="animate-spin" size={16} />}
+                      {isCompleted && <CheckCircle2 size={16} />}
+                      {isFailed && <XCircle size={16} />}
+                      {!isRunning && !isCompleted && !isFailed && <div className="w-2 h-2 rounded-full bg-slate-300" />}
+                      <span className="capitalize text-sm font-bold tracking-tight">
+                        {platform}: <span className="opacity-70">{platformStatus || 'queued'}</span>
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          {/* Background decoration */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
         </div>
       )}
 
       {status === 'completed' && state && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
-          <CheckCircle2 className="text-emerald-600" size={20} />
-          <div className="flex-1">
-            <div className="font-semibold text-emerald-900">Analysis completed</div>
-            <div className="text-sm text-emerald-700 mt-0.5">
-              Last run: {state.last_run_at ? new Date(state.last_run_at).toLocaleString() : 'N/A'}
+        <div className="mb-12 rounded-[2rem] border border-emerald-100 bg-emerald-50/30 p-6 flex flex-col md:flex-row items-center gap-6 group hover:border-emerald-200 transition-colors">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+            <CheckCircle2 size={24} />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <div className="text-lg font-black text-emerald-900 tracking-tight">Analysis Synchronized</div>
+            <div className="text-emerald-600 font-medium">
+              Data is fresh and AI insights are updated based on the latest activity.
             </div>
           </div>
         </div>
       )}
 
       {status === 'failed' && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 flex items-center gap-3">
-          <XCircle className="text-rose-600" size={20} />
-          <div className="flex-1">
-            <div className="font-semibold text-rose-900">Analysis failed</div>
-            <div className="text-sm text-rose-700 mt-0.5">Please try again or contact support.</div>
+        <div className="mb-12 rounded-[2rem] border border-rose-100 bg-rose-50/30 p-8 flex flex-col md:flex-row items-center gap-6">
+          <div className="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600">
+            <XCircle size={32} />
           </div>
+          <div className="flex-1">
+            <div className="text-xl font-black text-rose-900">Analysis Halted</div>
+            <div className="text-rose-600 font-medium mt-1">We encountered an issue while fetching some platform data. Please try again.</div>
+          </div>
+          <button
+            onClick={() => handleAnalyze()}
+            className="px-6 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-colors shadow-lg shadow-rose-600/20"
+          >
+            Retry Analysis
+          </button>
         </div>
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="animate-spin text-gray-400" size={32} />
+        <div className="flex flex-col items-center justify-center py-32 space-y-6">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-slate-100 animate-pulse"></div>
+            <Loader2 className="absolute inset-0 animate-spin text-indigo-600 m-auto" size={32} />
+          </div>
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-bold text-slate-900">Gathering Intelligence...</h3>
+            <p className="text-slate-500 text-sm max-w-xs mx-auto">Connecting to social APIs and analyzing competitor performance.</p>
+          </div>
+          <div className="flex gap-2">
+            <div className="w-3 h-3 rounded-full bg-indigo-600/20 animate-bounce [animation-delay:-0.3s]"></div>
+            <div className="w-3 h-3 rounded-full bg-indigo-600/40 animate-bounce [animation-delay:-0.15s]"></div>
+            <div className="w-3 h-3 rounded-full bg-indigo-600/60 animate-bounce"></div>
+          </div>
         </div>
       ) : !state ? (
-        <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-12 text-center">
-          <div className="mx-auto w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center mb-3">
-            <TrendingUp className="text-gray-400" size={24} />
+        <div className="rounded-[2.5rem] border-2 border-dashed border-slate-200 bg-slate-50/50 p-20 text-center">
+          <div className="mx-auto w-20 h-20 bg-white rounded-3xl shadow-xl border border-slate-100 flex items-center justify-center mb-8 group hover:scale-110 transition-transform duration-500">
+            <TrendingUp className="text-slate-400 group-hover:text-indigo-600 transition-colors" size={32} />
           </div>
-          <h3 className="text-gray-900 font-semibold">No analysis data</h3>
-          <p className="text-gray-500 text-sm mt-1">Click "Analyze Competition" to get started.</p>
+          <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">No Benchmarking Data Found</h3>
+          <p className="text-slate-500 text-lg max-w-md mx-auto mb-10">
+            Connect your social accounts and start your first analysis to see how you stack up against the competition.
+          </p>
+          <ShimmerButton
+            onClick={() => handleAnalyze()}
+            className="shadow-2xl mx-auto"
+          >
+            <span className="whitespace-pre-wrap text-center text-base font-bold leading-none tracking-tight text-white lg:text-lg flex items-center gap-2">
+              <TrendingUp size={20} /> Start First Analysis
+            </span>
+          </ShimmerButton>
         </div>
       ) : status !== 'completed' ? (
-        <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-12 text-center">
-          <div className="mx-auto w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center mb-3">
-            <Loader2 className="animate-spin text-gray-400" size={24} />
-          </div>
-          <h3 className="text-gray-900 font-semibold">Analysis in progress</h3>
-          <p className="text-gray-500 text-sm mt-1">Status: {status}</p>
-          {state.competitors?.length > 0 && (
-            <p className="text-gray-500 text-sm mt-2">
-              Found {state.competitors.length} competitor{state.competitors.length !== 1 ? 's' : ''}
+        <div className="rounded-[2.5rem] border-2 border-dashed border-slate-200 bg-white p-20 text-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/30 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-50/30 rounded-full -ml-32 -mb-32 blur-3xl animate-pulse"></div>
+
+          <div className="relative z-10">
+            <div className="mx-auto w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center mb-8 relative">
+              <Loader2 className="animate-spin text-indigo-600" size={40} />
+              <div className="absolute inset-0 bg-indigo-600/10 rounded-3xl animate-ping opacity-20"></div>
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Analyzing Competitors...</h3>
+            <p className="text-slate-500 text-lg max-w-md mx-auto mb-6">
+              Status: <span className="text-indigo-600 font-bold capitalize">{status}</span>
             </p>
-          )}
+            {state.competitors?.length > 0 && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-full border border-slate-100 text-slate-600 font-bold text-sm">
+                <Users size={16} className="text-indigo-500" />
+                Found {state.competitors.length} competitor{state.competitors.length !== 1 ? 's' : ''}
+              </div>
+            )}
+
+            <div className="mt-12 max-w-lg mx-auto grid grid-cols-1 gap-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-4 bg-slate-50 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-100 via-indigo-200 to-indigo-100 w-1/2 animate-[shimmer_2s_infinite]"
+                    style={{ animation: `shimmer 2s ease-in-out infinite ${i * 0.5}s` }}
+                  ></div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-8">

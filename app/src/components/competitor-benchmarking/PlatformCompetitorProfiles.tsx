@@ -1,6 +1,5 @@
-"use client"
-
-import { ExternalLink, Users, Calendar } from "lucide-react"
+import { ExternalLink, Users, Calendar, ArrowRight } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type Platform = 'youtube' | 'instagram' | 'facebook'
 
@@ -14,9 +13,9 @@ export const PlatformCompetitorProfiles = ({ platform, profiles }: Props) => {
 
   if (platformProfiles.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <Users className="mx-auto mb-3 text-gray-400" size={32} />
-        <p className="text-sm">No competitor profiles found for {platform}</p>
+      <div className="flex flex-col items-center justify-center py-16 text-slate-400 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+        <Users className="mb-4 opacity-20" size={48} />
+        <p className="text-sm font-medium">No competitor profiles found for {platform}</p>
       </div>
     )
   }
@@ -27,91 +26,111 @@ export const PlatformCompetitorProfiles = ({ platform, profiles }: Props) => {
     return num.toLocaleString()
   }
 
-  const getPlatformBadgeColor = (platform: Platform) => {
+  const getPlatformColors = (platform: Platform) => {
     switch (platform) {
       case 'youtube':
-        return 'bg-red-100 text-red-700 border-red-200'
+        return {
+          bg: 'bg-red-50',
+          text: 'text-red-600',
+          border: 'border-red-100',
+          gradient: 'from-red-500 to-rose-600'
+        }
       case 'instagram':
-        return 'bg-pink-100 text-pink-700 border-pink-200'
+        return {
+          bg: 'bg-pink-50',
+          text: 'text-pink-600',
+          border: 'border-pink-100',
+          gradient: 'from-pink-500 to-fuchsia-600'
+        }
       case 'facebook':
-        return 'bg-blue-100 text-blue-700 border-blue-200'
+        return {
+          bg: 'bg-blue-50',
+          text: 'text-blue-600',
+          border: 'border-blue-100',
+          gradient: 'from-blue-500 to-indigo-600'
+        }
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-200'
-    }
-  }
-
-  const getPlatformLabel = (platform: Platform) => {
-    switch (platform) {
-      case 'youtube':
-        return 'YouTube'
-      case 'instagram':
-        return 'Instagram'
-      case 'facebook':
-        return 'Facebook'
-      default:
-        return platform
+        return {
+          bg: 'bg-slate-50',
+          text: 'text-slate-600',
+          border: 'border-slate-100',
+          gradient: 'from-slate-500 to-slate-600'
+        }
     }
   }
 
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {platformProfiles.map((profile) => (
-        <div
-          key={profile.profile_id || profile.id}
-          className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
-                {profile.name}
-              </h3>
-              <span className={`
-                inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border
-                ${getPlatformBadgeColor(platform)}
-              `}>
-                {getPlatformLabel(platform)}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Followers</span>
-              <span className="font-semibold text-gray-900">
-                {formatNumber(profile.follower_count || 0)}
-              </span>
-            </div>
-            {profile.category && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Category</span>
-                <span className="font-medium text-gray-700 capitalize">
-                  {profile.category}
-                </span>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {platformProfiles.map((profile) => {
+        const colors = getPlatformColors(platform)
+        return (
+          <div
+            key={profile.profile_id || profile.id}
+            className="group relative rounded-3xl border border-slate-100 bg-white p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+          >
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex-1">
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 duration-300 shadow-sm",
+                  colors.bg
+                )}>
+                  <Users className={colors.text} size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 line-clamp-1 mb-1">
+                  {profile.name}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full", colors.bg.replace('bg-', 'bg-').split(' ')[0], colors.text.replace('text-', 'bg-'))} />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {platform} creator
+                  </span>
+                </div>
               </div>
-            )}
-            {profile.fetched_at && (
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <Calendar size={12} />
-                <span>
-                  Fetched {new Date(profile.fetched_at).toLocaleDateString()}
-                </span>
+              <div className="pt-1">
+                <div className={cn(
+                  "px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-tight",
+                  colors.bg, colors.text, colors.border
+                )}>
+                  {profile.category || "Creator"}
+                </div>
               </div>
-            )}
-          </div>
+            </div>
 
-          {profile.profile_url && (
-            <a
-              href={profile.profile_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 w-full justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <ExternalLink size={14} />
-              View Profile
-            </a>
-          )}
-        </div>
-      ))}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100/50">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-1">Followers</div>
+                <div className="text-xl font-black text-slate-900">
+                  {formatNumber(profile.follower_count || 0)}
+                </div>
+              </div>
+              <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100/50">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-1">Engagement</div>
+                <div className="text-xl font-black text-indigo-600">
+                  {profile.engagement_rate ? `${profile.engagement_rate}%` : "--"}
+                </div>
+              </div>
+            </div>
+
+            {profile.profile_url && (
+              <a
+                href={profile.profile_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group/btn flex items-center justify-between w-full p-4 rounded-2xl bg-slate-900 text-white font-bold text-sm shadow-lg shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all"
+              >
+                <span>View Profile</span>
+                <ArrowRight size={18} className="transition-transform group-hover/btn:translate-x-1" />
+              </a>
+            )}
+
+            {/* Subtle Gradient background elements */}
+            <div className={cn(
+              "absolute -bottom-1 left-4 right-4 h-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r",
+              colors.gradient
+            )} />
+          </div>
+        )
+      })}
     </div>
   )
 }
