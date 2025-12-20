@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Deal } from "@/types/deal"
-import { fetchDeals, sendSmartReply, updateDeal } from "@/lib/api"
+import { fetchDeals, sendSmartReply, updateDeal, clearNotifications } from "@/lib/api"
 import { DealCard } from "@/components/DealCard"
 import { DealModal } from "@/components/DealModal"
 import { NotificationBell, NotificationItem } from "@/components/NotificationBell"
+import { useStreamGroup } from "@motiadev/stream-client-react"
+import { NewDealPopup } from "@/components/NewDealPopup"
 import {
   Sparkles, Loader2, Plus, TrendingUp, Clock, MessageSquare,
   Briefcase, FileText, BarChart3, Zap, ArrowRight
@@ -23,6 +25,23 @@ const DashboardPage = () => {
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [sending, setSending] = useState<string | null>(null)
+  const [alertDeal, setAlertDeal] = useState<Deal | null>(null)
+
+  // Stream subscription for deals
+  const dealsConfig = useMemo(() => ({
+    streamName: "deals",
+    groupId: "all-deals",
+  }), [])
+
+  const { data: streamedDeals } = useStreamGroup<any>(dealsConfig)
+
+  // Stream subscription for notifications
+  const notifsConfig = useMemo(() => ({
+    streamName: "notifications",
+    groupId: "default-creator",
+  }), [])
+
+  const { data: streamedNotifs } = useStreamGroup<any>(notifsConfig)
 
   const refresh = useCallback(async () => {
     try {
@@ -36,11 +55,63 @@ const DashboardPage = () => {
     }
   }, [])
 
+  // Initial load
   useEffect(() => {
     refresh()
-    const interval = setInterval(refresh, 15000)
-    return () => clearInterval(interval)
   }, [refresh])
+
+  // Sync streamed deals
+  useEffect(() => {
+    if (streamedDeals && streamedDeals.length > 0) {
+      setDeals(prevDeals => {
+        // Merge streamed deals with existing deals
+        const merged = [...prevDeals]
+        streamedDeals.forEach((sDeal: any) => {
+          // In Motia streams, the item's ID is often in the 'id' property
+          const dealId = sDeal.dealId || sDeal.id
+          const idx = merged.findIndex(d => d.dealId === dealId)
+          if (idx !== -1) {
+            merged[idx] = sDeal
+          } else {
+            merged.unshift(sDeal)
+            // Trigger unique popup for truly new deals
+            if (prevDeals.length > 0) {
+              setAlertDeal(sDeal)
+            }
+          }
+        })
+        return merged
+      })
+
+      // Update currently open modal if it matches a streamed deal
+      streamedDeals.forEach((sDeal: any) => {
+        const dealId = sDeal.dealId || sDeal.id
+        if (selectedDeal && selectedDeal.dealId === dealId) {
+          setSelectedDeal(sDeal)
+        }
+      })
+    }
+  }, [streamedDeals, selectedDeal])
+
+  // Sync streamed notifications
+  useEffect(() => {
+    if (streamedNotifs && streamedNotifs.length > 0) {
+      setNotifications(prev => {
+        const newNotifs = streamedNotifs
+          .filter(sn => !prev.some(p => p.id === sn.id))
+          .map(sn => ({
+            id: sn.id,
+            title: sn.title,
+            body: sn.body,
+            tone: sn.tone,
+            time: new Date().toLocaleTimeString(),
+          }))
+
+        if (newNotifs.length === 0) return prev
+        return [...prev, ...newNotifs]
+      })
+    }
+  }, [streamedNotifs])
 
   const addNotification = (title: string, body: string, tone: NotificationItem["tone"] = "info") => {
     setNotifications(prev => [
@@ -116,7 +187,26 @@ const DashboardPage = () => {
   }, [deals, grouped])
 
   return (
-    <AppLayout notifications={notifications} onClearNotifications={() => setNotifications([])}>
+    <AppLayout
+      notifications={notifications}
+      onClearNotifications={async () => {
+        try {
+          await clearNotifications()
+          setNotifications([])
+        } catch (error) {
+          console.error("Failed to clear notifications:", error)
+          setNotifications([]) // Fallback to local clear
+        }
+      }}
+    >
+      <NewDealPopup
+        deal={alertDeal}
+        onClose={() => setAlertDeal(null)}
+        onView={() => {
+          setSelectedDeal(alertDeal)
+          setAlertDeal(null)
+        }}
+      />
       {/* Hero Stats Section */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-6">

@@ -232,4 +232,10 @@ export const getCompetitorBenchmarking = async (creatorId: string) => {
     throw error
   }
 }
-
+export const clearNotifications = async () => {
+  const res = await fetch(`${API_BASE}/api/notifications/clear`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  })
+  return handle<{ success: boolean }>(res)
+}

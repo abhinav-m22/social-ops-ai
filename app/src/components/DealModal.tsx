@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Deal } from "@/types/deal"
 import { formatCurrency, formatDate, cn } from "@/lib/ui"
 import { InvoiceModal } from "./InvoiceModal"
@@ -7,11 +7,12 @@ import { StatusBadge } from "./StatusBadge"
 import {
   X, Mail, Sparkles, ShieldAlert, ChevronDown, ChevronUp,
   Package, DollarSign, TrendingUp, Clock, MessageSquare,
-  Calendar, Video, CheckCircle2, AlertTriangle, ArrowUpRight, FileText
+  Calendar, Video, CheckCircle2, AlertTriangle, ArrowUpRight, FileText, RefreshCw
 } from "lucide-react"
 import { submitNegotiationAction } from "@/lib/api"
 import { NumberTicker } from "./ui/number-ticker"
 import { ShimmerButton } from "./ui/shimmer-button"
+import { useStreamGroup } from "@motiadev/stream-client-react"
 
 type Props = {
   deal: Deal | null
@@ -31,6 +32,17 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
   const [showCustomCounter, setShowCustomCounter] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false)
+
+  // Analysis Stream Subscription
+  const streamConfig = useMemo(() => ({
+    streamName: "analysis",
+    groupId: deal?.inquiryId || "none"
+  }), [deal?.inquiryId])
+
+  const { data: analysisData } = useStreamGroup<any>(streamConfig)
+
+  // Get latest analysis status
+  const currentAnalysis = analysisData?.[0]
 
   useEffect(() => {
     setReply(deal?.aiSuggestedReply || deal?.autoReplyMessage || "")
@@ -230,6 +242,25 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
                       </div>
                     ) : null
                   })()}
+                </div>
+              </div>
+            )}
+
+            {/* AI Thinking Progress */}
+            {currentAnalysis?.status === 'thinking' && !deal.negotiation && (
+              <div className="rounded-xl border-2 border-amber-200 bg-white p-6 shadow-lg overflow-hidden relative">
+                <div className="absolute top-0 left-0 h-1.5 bg-amber-500 transition-all duration-700 ease-out" style={{ width: `${currentAnalysis.progress || 0}%` }} />
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 flex items-center justify-center rounded-2xl bg-amber-100 text-amber-600 animate-spin">
+                    <RefreshCw size={24} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+                      AI Thinking...
+                      <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                    </div>
+                    <div className="text-sm text-slate-500 font-medium italic">{currentAnalysis.message || 'Crunching numbers...'}</div>
+                  </div>
                 </div>
               </div>
             )}
