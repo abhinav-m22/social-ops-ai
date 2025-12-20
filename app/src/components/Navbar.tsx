@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Menu, X, User, Settings, HelpCircle, LogOut, TrendingUp, LayoutDashboard, DollarSign, BarChart3 } from "lucide-react"
+import { Bell, Menu, X, User, Settings, HelpCircle, LogOut, TrendingUp, LayoutDashboard, DollarSign, BarChart3, ReceiptText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { NotificationBell, NotificationItem } from "./NotificationBell"
 
@@ -16,6 +16,7 @@ const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/finance", label: "Finance", icon: DollarSign },
     { href: "/competitor-benchmarking", label: "Analytics", icon: BarChart3 },
+    { href: "/invoices", label: "Invoices", icon: ReceiptText }
 ]
 
 export function Navbar({ notifications = [], onClearNotifications }: NavbarProps) {

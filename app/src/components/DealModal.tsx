@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 import { Deal } from "@/types/deal"
-import { InvoicePanel } from "./InvoicePanel"
 import { formatCurrency, formatDate, cn } from "@/lib/ui"
+import { InvoiceModal } from "./InvoiceModal"
 import { ConfidenceBadge } from "./ConfidenceBadge"
 import { StatusBadge } from "./StatusBadge"
 import {
   X, Mail, Sparkles, ShieldAlert, ChevronDown, ChevronUp,
   Package, DollarSign, TrendingUp, Clock, MessageSquare,
-  Calendar, Video, CheckCircle2, AlertTriangle
+  Calendar, Video, CheckCircle2, AlertTriangle, ArrowUpRight, FileText
 } from "lucide-react"
 import { submitNegotiationAction } from "@/lib/api"
 import { NumberTicker } from "./ui/number-ticker"
@@ -30,6 +30,7 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
   const [customAmount, setCustomAmount] = useState<string>("")
   const [showCustomCounter, setShowCustomCounter] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false)
 
   useEffect(() => {
     setReply(deal?.aiSuggestedReply || deal?.autoReplyMessage || "")
@@ -110,7 +111,7 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
         {/* Enhanced Header */}
         <div className="flex items-start gap-6 mb-8 pb-8 border-b border-slate-200">
           {/* Large Gradient Brand Initial */}
-          <div className="h-20 w-20 rounded-full bg-linear-to-br from-indigo-500 via-cyan-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-black shadow-2xl shadow-indigo-200">
+          <div className="h-14 w-14 rounded-2xl bg-linear-to-br from-indigo-500 via-indigo-600 to-cyan-500 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-indigo-200">
             {deal.brand?.name?.[0]?.toUpperCase() || "B"}
           </div>
 
@@ -414,20 +415,38 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
 
           {/* Right Column: Actions */}
           <div className="space-y-6">
-            {/* Invoice Panel */}
+            {/* Invoice Quick Access Card */}
             {deal.status === "active" && (
-              <InvoicePanel
-                dealId={deal.dealId}
-                onInvoiceUpdate={(invoice) => {
-                  console.log("Invoice updated:", invoice)
-                }}
-              />
+              <div className="rounded-xl border border-indigo-100 bg-white p-6 shadow-sm space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900">Manage Invoice</h3>
+                    <p className="text-xs text-slate-500 font-medium">Build & Send to Brand</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setInvoiceModalOpen(true)}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-slate-900 transition-all flex items-center justify-center gap-2"
+                >
+                  Open Invoice Builder
+                  <ArrowUpRight size={16} />
+                </button>
+              </div>
             )}
+
+            <InvoiceModal
+              dealId={deal.dealId}
+              isOpen={invoiceModalOpen}
+              onClose={() => setInvoiceModalOpen(false)}
+            />
 
             {/* Negotiation Actions */}
             {isNegotiationMode && deal.negotiation ? (
               <div className="space-y-4">
-                <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-cyan-50 p-6 shadow-lg">
+                <div className="rounded-xl border-2 border-indigo-200 bg-linear-to-br from-indigo-50 to-cyan-50 p-6 shadow-lg">
                   <div className="flex items-center gap-2 text-indigo-900 font-bold mb-4">
                     <Sparkles size={18} className="text-indigo-600" />
                     Quick Actions
@@ -510,7 +529,7 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
               </div>
             ) : (
               /* Smart Reply */
-              <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-cyan-50 p-6 shadow-lg">
+              <div className="rounded-xl border-2 border-indigo-200 bg-linear-to-br from-indigo-50 to-cyan-50 p-6 shadow-lg">
                 <div className="flex items-center gap-2 text-indigo-900 font-bold mb-4">
                   <Sparkles size={18} className="text-indigo-600" />
                   Smart Reply

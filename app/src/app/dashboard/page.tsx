@@ -370,7 +370,7 @@ function ActivityItem({
 
   return (
     <div className="flex gap-3 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
-      <div className={cn("w-2 h-2 rounded-full mt-2 flex-shrink-0", toneColors[tone])} />
+      <div className={cn("w-2 h-2 rounded-full mt-2 shrink-0", toneColors[tone])} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-slate-900">{title}</p>
         <p className="text-xs text-slate-600 mt-0.5">{body}</p>
