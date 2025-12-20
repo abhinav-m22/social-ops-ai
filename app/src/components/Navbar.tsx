@@ -31,10 +31,10 @@ export function Navbar({ notifications = [], onClearNotifications }: NavbarProps
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
                     <Link href="/dashboard" className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-cyan-600 rounded-lg flex items-center justify-center">
+                        <div className="h-8 w-8 rounded-lg bg-linear-to-br from-indigo-600 to-cyan-500 shadow-md flex items-center justify-center shrink-0">
                             <TrendingUp className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 via-cyan-600 to-indigo-600 bg-clip-text text-transparent">
+                        <span className="text-xl font-bold bg-linear-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
                             SocialOps AI
                         </span>
                     </Link>
@@ -72,7 +72,7 @@ export function Navbar({ notifications = [], onClearNotifications }: NavbarProps
                                 onClick={() => setProfileOpen(!profileOpen)}
                                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                             >
-                                <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                                <div className="w-8 h-8 bg-linear-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
                                     <User className="w-4 h-4 text-white" />
                                 </div>
                             </button>

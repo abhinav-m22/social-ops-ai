@@ -6,21 +6,21 @@ export const ConfidenceBadge = ({ level, score }: { level?: ConfidenceLevel; sco
   if (!level) return null
   const tone =
     level === "high"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
       : level === "medium"
-        ? "bg-amber-50 text-amber-700 border-amber-300"
-        : "bg-rose-50 text-rose-700 border-rose-300"
+        ? "bg-amber-50 text-amber-700 border-amber-200"
+        : "bg-rose-50 text-rose-700 border-rose-200"
 
   const Icon = level === "high" ? ShieldCheck : level === "medium" ? ShieldHalf : Shield
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold shadow-sm transition-all",
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-tight transition-all",
         tone
       )}
     >
-      <Icon size={14} />
+      <Icon size={12} />
       {level.toUpperCase()} {typeof score === "number" ? `· ${score}` : ""}
     </span>
   )

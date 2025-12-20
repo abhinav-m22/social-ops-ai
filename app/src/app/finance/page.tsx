@@ -9,8 +9,11 @@ import toast from "react-hot-toast"
 import Link from "next/link"
 import { ITRAssistant } from "@/components/ITRAssistant"
 import { AppLayout } from "@/components/AppLayout"
+import { NumberTicker } from "@/components/ui/number-ticker"
+import { ShimmerButton } from "@/components/ui/shimmer-button"
+import { cn } from "@/lib/ui"
 
-const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4']
+const COLORS = ['#6366f1', '#06b6d4', '#f59e0b', '#10b981', '#64748b', '#ec4899']
 
 export default function FinancePage() {
   const [data, setData] = useState<FinanceData | null>(null)
@@ -116,16 +119,16 @@ export default function FinancePage() {
       <div>
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">FinanceHub</h1>
-              <p className="text-gray-600 mt-1">Financial analytics and overview</p>
+              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">FinanceHub</h1>
+              <p className="text-slate-500 mt-1">Track earnings, GST, TDS, and generate AI insights.</p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={handleExportPDF}
                 disabled={exporting !== null}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
               >
                 <Download className="w-4 h-4" />
                 {exporting === "pdf" ? "Exporting..." : "Export PDF"}
@@ -133,7 +136,7 @@ export default function FinancePage() {
               <button
                 onClick={handleExportExcel}
                 disabled={exporting !== null}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
               >
                 <Download className="w-4 h-4" />
                 {exporting === "excel" ? "Exporting..." : "Export Excel"}
@@ -142,28 +145,30 @@ export default function FinancePage() {
           </div>
         </div>
         {/* AI Insights Section */}
-        <div className="mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">AI Finance Insights</h2>
-              <button
+        <div className="mb-10">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">AI Finance Insights</h2>
+                {!insights && !generatingInsights && (
+                  <p className="text-slate-500 mt-1">Generate deep insights using your personalized financial data.</p>
+                )}
+              </div>
+              <ShimmerButton
                 onClick={handleGenerateInsights}
                 disabled={generatingInsights || !data}
-                className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                className="shadow-lg"
               >
                 <Sparkles className="w-4 h-4" />
                 {generatingInsights ? "Generating..." : "Generate Finance Insights"}
-              </button>
+              </ShimmerButton>
             </div>
             {insights && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mt-4">
-                <div className="prose prose-sm max-w-none">
-                  <div className="whitespace-pre-line text-gray-700 leading-relaxed">{insights}</div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mt-4">
+                <div className="prose prose-slate max-w-none">
+                  <div className="whitespace-pre-line text-slate-700 leading-relaxed">{insights}</div>
                 </div>
               </div>
-            )}
-            {!insights && !generatingInsights && (
-              <p className="text-sm text-gray-500 mt-2">Click the button above to generate AI-powered financial insights based on your data.</p>
             )}
           </div>
         </div>
@@ -173,26 +178,26 @@ export default function FinancePage() {
           <SummaryCard
             title="Total Earnings"
             value={data.summary.totalEarnings}
-            icon={<DollarSign className="h-6 w-6" />}
-            color="emerald"
+            icon={TrendingUp}
+            color="indigo"
           />
           <SummaryCard
             title="GST Collected"
             value={data.summary.totalGST}
-            icon={<Receipt className="h-6 w-6" />}
-            color="blue"
+            icon={Receipt}
+            color="cyan"
           />
           <SummaryCard
             title="TDS Deducted"
             value={data.summary.totalTDS}
-            icon={<FileText className="h-6 w-6" />}
+            icon={FileText}
             color="amber"
           />
           <SummaryCard
             title="Net Receivable"
             value={data.summary.netReceivable}
-            icon={<TrendingUp className="h-6 w-6" />}
-            color="purple"
+            icon={DollarSign}
+            color="emerald"
           />
         </div>
 
@@ -212,7 +217,7 @@ export default function FinancePage() {
                     formatter={(value: number | undefined) => formatCurrency(value)}
                     contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                   />
-                  <Bar dataKey="earnings" fill="#10b981" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="earnings" fill="#6366f1" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -263,9 +268,9 @@ export default function FinancePage() {
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="earnings" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981', r: 4 }} name="Earnings" />
-                <Line type="monotone" dataKey="gst" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 4 }} name="GST" />
-                <Line type="monotone" dataKey="tds" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b', r: 4 }} name="TDS" />
+                <Line type="monotone" dataKey="earnings" stroke="#6366f1" strokeWidth={3} dot={{ fill: '#6366f1', r: 4 }} name="Earnings" />
+                <Line type="monotone" dataKey="gst" stroke="#06b6d4" strokeWidth={3} dot={{ fill: '#06b6d4', r: 4 }} name="GST" />
+                <Line type="monotone" dataKey="tds" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 4 }} name="TDS" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -289,33 +294,33 @@ export default function FinancePage() {
               <strong>Note:</strong> This is an auto-generated GST draft for reference. Please consult your CA before filing.
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Invoice ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Brand</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">GST</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Total</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">Invoice ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">Brand</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">Amount</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">GST</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">Total</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-slate-100">
                   {data.gst.tableData.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                         No GST data available
                       </td>
                     </tr>
                   ) : (
                     data.gst.tableData.map((row, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.invoiceId}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row.brand}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(row.amount)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(row.gst)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">{formatCurrency(row.total)}</td>
+                      <tr key={index} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{row.invoiceId}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{row.brand}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 text-right">{formatCurrency(row.amount)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-cyan-600 font-bold text-right">{formatCurrency(row.gst)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-black text-slate-900 text-right">{formatCurrency(row.total)}</td>
                       </tr>
                     ))
                   )}
@@ -346,31 +351,31 @@ export default function FinancePage() {
               <p className="text-3xl font-bold text-blue-600">{data.tds.dealsWithTDS}</p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Brand</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Gross Amount</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">TDS</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Net Amount</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">Brand</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">Gross Amount</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">TDS</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">Net Amount</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-slate-100">
                   {data.tds.tableData.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
                         No TDS data available
                       </td>
                     </tr>
                   ) : (
                     data.tds.tableData.map((row, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.brand}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(row.grossAmount)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(row.tds)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">{formatCurrency(row.netAmount)}</td>
+                      <tr key={index} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{row.brand}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 text-right">{formatCurrency(row.grossAmount)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-600 font-bold text-right">{formatCurrency(row.tds)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-black text-slate-900 text-right">{formatCurrency(row.netAmount)}</td>
                       </tr>
                     ))
                   )}
@@ -384,23 +389,29 @@ export default function FinancePage() {
   )
 }
 
-function SummaryCard({ title, value, icon, color }: { title: string; value: number; icon: React.ReactNode; color: string }) {
+function SummaryCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: "indigo" | "cyan" | "amber" | "emerald" }) {
   const colorClasses = {
-    emerald: "bg-emerald-50 text-emerald-600 border-emerald-200",
-    blue: "bg-blue-50 text-blue-600 border-blue-200",
-    amber: "bg-amber-50 text-amber-600 border-amber-200",
-    purple: "bg-purple-50 text-purple-600 border-purple-200",
+    indigo: "bg-indigo-100 text-indigo-600",
+    cyan: "bg-cyan-100 text-cyan-600",
+    amber: "bg-amber-100 text-amber-600",
+    emerald: "bg-emerald-100 text-emerald-600",
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-gray-600 uppercase tracking-wide">{title}</h3>
-        <div className={`p-2 rounded-lg border ${colorClasses[color as keyof typeof colorClasses]}`}>
-          {icon}
+    <div className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-lg hover:border-indigo-300 transition-all">
+      <div className="flex items-start justify-between mb-4">
+        <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">{title}</p>
+        <div className={cn("p-2 rounded-xl", colorClasses[color])}>
+          <Icon className="w-6 h-6" />
         </div>
       </div>
-      <p className="text-3xl font-bold text-gray-900">{formatCurrency(value)}</p>
+      <div className="flex items-baseline gap-1">
+        <span className="text-3xl font-bold text-slate-900">₹</span>
+        <NumberTicker
+          value={value}
+          className="text-3xl font-bold text-slate-900"
+        />
+      </div>
     </div>
   )
 }

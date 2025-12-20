@@ -6,10 +6,16 @@ import { fetchDeals, sendSmartReply, updateDeal } from "@/lib/api"
 import { DealCard } from "@/components/DealCard"
 import { DealModal } from "@/components/DealModal"
 import { NotificationBell, NotificationItem } from "@/components/NotificationBell"
-import { Sparkles, Loader2, Plus, User, TrendingUp } from "lucide-react"
+import {
+  Sparkles, Loader2, Plus, TrendingUp, Clock, MessageSquare,
+  Briefcase, FileText, BarChart3, Zap, ArrowRight
+} from "lucide-react"
 import Link from "next/link"
 import toast from "react-hot-toast"
 import { AppLayout } from "@/components/AppLayout"
+import { NumberTicker } from "@/components/ui/number-ticker"
+import { ShimmerButton } from "@/components/ui/shimmer-button"
+import { cn } from "@/lib/utils"
 
 const DashboardPage = () => {
   const [deals, setDeals] = useState<Deal[]>([])
@@ -67,7 +73,6 @@ const DashboardPage = () => {
   const handleDecline = async (deal: Deal, reason?: string) => {
     try {
       setSending(deal.dealId)
-      // Send decline message to Facebook
       const res = await sendSmartReply(deal.dealId, undefined, "decline")
       setDeals(prev => prev.map(d => (d.dealId === deal.dealId ? res.deal : d)))
       toast.success(`Declined ${deal.brand?.name} - message sent`)
@@ -96,120 +101,191 @@ const DashboardPage = () => {
     return { newInquiries, active, completed }
   }, [deals])
 
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalDeals = deals.length
+    const thisMonthEarnings = deals
+      .filter(d => d.status === "completed" && d.terms?.total)
+      .reduce((sum, d) => sum + (d.terms?.total || 0), 0)
+    const pendingPayments = deals.filter(d =>
+      d.status === "active" && d.terms?.total
+    ).length
+    const activeNegotiations = grouped.active.length
+
+    return { totalDeals, thisMonthEarnings, pendingPayments, activeNegotiations }
+  }, [deals, grouped])
+
   return (
     <AppLayout notifications={notifications} onClearNotifications={() => setNotifications([])}>
-      <header className="flex items-center justify-between flex-wrap gap-4 mb-10">
-        <div>
-          <div className="text-sm text-emerald-700 font-semibold flex items-center gap-2 mb-1 bg-emerald-50 w-fit px-3 py-1 rounded-full border border-emerald-100">
-            <Sparkles size={14} /> Premium Deals Dashboard
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Creator Collaboration Center</h1>
-          <p className="text-gray-500 mt-1 text-lg">Manage brand deals, automate replies, and track your revenue.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-xl bg-gray-900 text-white px-5 py-2.5 text-sm font-medium shadow-lg shadow-gray-900/10 hover:shadow-xl hover:-translate-y-0.5 transition-all">
-            <Plus size={18} /> Add Deal
-          </button>
-        </div>
-      </header>
-
-      <section className="space-y-5">
-        <div className="flex items-center justify-between">
+      {/* Hero Stats Section */}
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              New Inquiries <span className="text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{grouped.newInquiries.length}</span>
-            </h2>
-            <p className="text-gray-500 text-sm mt-0.5">Fresh opportunities requiring your attention</p>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
+            <p className="text-slate-600 mt-1">Welcome back! Here's your overview.</p>
           </div>
-          {loading && (
-            <div className="text-sm text-emerald-600 font-medium flex items-center gap-2 bg-emerald-50 px-3 py-1 rounded-full">
-              <Loader2 className="animate-spin" size={14} /> Syncing deals...
+          <Link href="/creator/profile">
+            <button className="inline-flex items-center gap-2 rounded-xl bg-slate-900 text-white px-5 py-2.5 text-sm font-medium shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
+              <Plus size={18} /> Add Deal
+            </button>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Total Deals */}
+          <StatCard
+            icon={Briefcase}
+            label="Total Deals"
+            value={stats.totalDeals}
+            iconColor="indigo"
+          />
+
+          {/* This Month Earnings */}
+          <StatCard
+            icon={TrendingUp}
+            label="This Month"
+            value={stats.thisMonthEarnings}
+            prefix="₹"
+            iconColor="cyan"
+          />
+
+          {/* Pending Payments */}
+          <StatCard
+            icon={Clock}
+            label="Pending Payments"
+            value={stats.pendingPayments}
+            iconColor={stats.pendingPayments > 0 ? "amber" : "slate"}
+          />
+
+          {/* Active Negotiations */}
+          <StatCard
+            icon={MessageSquare}
+            label="Active Negotiations"
+            value={stats.activeNegotiations}
+            iconColor="indigo"
+          />
+        </div>
+      </section>
+
+      {/* Main Content Grid - Full Width */}{
+      }      <div className="space-y-8">
+        {/* Main Content: Deals */}
+        <div className="space-y-8">
+          {/* New Inquiries */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  New Inquiries
+                  <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {grouped.newInquiries.length}
+                  </span>
+                </h2>
+                <p className="text-slate-600 text-sm mt-0.5">Fresh opportunities requiring your attention</p>
+              </div>
+              {loading && (
+                <div className="shrink-0 p-3 bg-indigo-50 rounded-xl text-indigo-600 flex items-center gap-2">
+                  <Loader2 className="animate-spin" size={14} /> Syncing...
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        {grouped.newInquiries.length === 0 && !loading ? (
-          <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-12 text-center">
-            <div className="mx-auto w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center mb-3">
-              <Sparkles className="text-gray-400" size={24} />
+            {grouped.newInquiries.length === 0 && !loading ? (
+              <EmptyState
+                icon={Sparkles}
+                title="No new inquiries"
+                description="We'll notify you when a brand reaches out."
+              />
+            ) : (
+              <div className="grid md:grid-cols-3 gap-4">
+                {grouped.newInquiries.map(deal => (
+                  <DealCard
+                    key={deal.dealId}
+                    deal={deal}
+                    busy={sending === deal.dealId}
+                    onOpen={setSelectedDeal}
+                    onSendSmartReply={handleSmartReply}
+                    onDecline={d => handleDecline(d)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Active Deals */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-t border-slate-200 pt-8">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  Active Deals
+                  <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {grouped.active.length}
+                  </span>
+                </h2>
+                <p className="text-slate-600 text-sm mt-0.5">Ongoing contracts and negotiations</p>
+              </div>
             </div>
-            <h3 className="text-gray-900 font-semibold">No new inquiries</h3>
-            <p className="text-gray-500 text-sm mt-1">We'll notify you when a brand reaches out.</p>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {grouped.newInquiries.map(deal => (
-              <DealCard
-                key={deal.dealId}
-                deal={deal}
-                busy={sending === deal.dealId}
-                onOpen={setSelectedDeal}
-                onSendSmartReply={handleSmartReply}
-                onDecline={d => handleDecline(d)}
+            {grouped.active.length === 0 ? (
+              <EmptyState
+                icon={MessageSquare}
+                title="No active deals"
+                description="Your active negotiations will appear here."
               />
-            ))}
-          </div>
-        )}
-      </section>
+            ) : (
+              <div className="grid md:grid-cols-3 gap-4">
+                {grouped.active.map(deal => (
+                  <DealCard
+                    key={deal.dealId}
+                    deal={deal}
+                    variant="active"
+                    busy={sending === deal.dealId}
+                    onOpen={setSelectedDeal}
+                    onSendSmartReply={handleSmartReply}
+                    onDecline={d => handleDecline(d)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
 
-      <section className="space-y-5">
-        <div className="flex items-center justify-between border-t border-gray-200 pt-8">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              Active Deals <span className="text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{grouped.active.length}</span>
-            </h2>
-            <p className="text-gray-500 text-sm mt-0.5">Contracts, negotiations, and ongoing work</p>
-          </div>
-        </div>
-        {grouped.active.length === 0 ? (
-          <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-12 text-center text-gray-400">
-            No active deals right now.
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {grouped.active.map(deal => (
-              <DealCard
-                key={deal.dealId}
-                deal={deal}
-                variant="active"
-                busy={sending === deal.dealId}
-                onOpen={setSelectedDeal}
-                onSendSmartReply={handleSmartReply}
-                onDecline={d => handleDecline(d)}
+          {/* Completed */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-t border-slate-200 pt-8">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  Archived
+                  <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {grouped.completed.length}
+                  </span>
+                </h2>
+                <p className="text-slate-600 text-sm mt-0.5">Completed and declined deals</p>
+              </div>
+            </div>
+            {grouped.completed.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="No archived deals"
+                description="Your completed deals will appear here."
               />
-            ))}
-          </div>
-        )}
-      </section>
+            ) : (
+              <div className="grid md:grid-cols-3 gap-4">
+                {grouped.completed.map(deal => (
+                  <DealCard
+                    key={deal.dealId}
+                    deal={deal}
+                    variant="completed"
+                    busy={sending === deal.dealId}
+                    onOpen={setSelectedDeal}
+                    onSendSmartReply={handleSmartReply}
+                    onDecline={d => handleDecline(d)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
 
-      <section className="space-y-5">
-        <div className="flex items-center justify-between border-t border-gray-200 pt-8">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              Archived <span className="text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{grouped.completed.length}</span>
-            </h2>
-            <p className="text-gray-500 text-sm mt-0.5">Completed and declined conversations</p>
-          </div>
-        </div>
-        {grouped.completed.length === 0 ? (
-          <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-8 text-center text-gray-400 text-sm">
-            Your history will appear here.
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {grouped.completed.map(deal => (
-              <DealCard
-                key={deal.dealId}
-                deal={deal}
-                variant="completed"
-                busy={sending === deal.dealId}
-                onOpen={setSelectedDeal}
-                onSendSmartReply={handleSmartReply}
-                onDecline={d => handleDecline(d)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+
+      </div>
 
       <DealModal
         deal={selectedDeal}
@@ -221,5 +297,87 @@ const DashboardPage = () => {
   )
 }
 
-export default DashboardPage
+// Stat Card Component
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  prefix = "",
+  iconColor = "indigo"
+}: {
+  icon: any
+  label: string
+  value: number
+  prefix?: string
+  iconColor?: "indigo" | "cyan" | "amber" | "slate"
+}) {
+  const colorClasses = {
+    indigo: "bg-indigo-100 text-indigo-600",
+    cyan: "bg-cyan-100 text-cyan-600",
+    amber: "bg-amber-100 text-amber-600",
+    slate: "bg-slate-100 text-slate-600",
+  }
 
+  return (
+    <div className="group bg-white rounded-xl border border-slate-200 shadow-sm p-6 hover:shadow-lg hover:border-indigo-300 transition-all">
+      <div className="flex items-start justify-between mb-4">
+        <p className="text-sm font-medium text-slate-600 uppercase tracking-wide">{label}</p>
+        <div className={cn("p-2 rounded-lg", colorClasses[iconColor])}>
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+      <div className="flex items-baseline gap-1">
+        {prefix && <span className="text-2xl font-bold text-slate-900">{prefix}</span>}
+        <NumberTicker
+          value={value}
+          className="text-3xl font-bold text-slate-900"
+        />
+      </div>
+    </div>
+  )
+}
+
+// Empty State Component
+function EmptyState({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+  return (
+    <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
+      <div className="mx-auto w-12 h-12 bg-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center mb-3">
+        <Icon className="text-slate-400" size={24} />
+      </div>
+      <h3 className="text-slate-900 font-semibold">{title}</h3>
+      <p className="text-slate-500 text-sm mt-1">{description}</p>
+    </div>
+  )
+}
+
+// Activity Item Component
+function ActivityItem({
+  title,
+  body,
+  time,
+  tone
+}: {
+  title: string
+  body: string
+  time: string
+  tone: "success" | "warning" | "info"
+}) {
+  const toneColors = {
+    success: "bg-emerald-100 text-emerald-600",
+    warning: "bg-amber-100 text-amber-600",
+    info: "bg-indigo-100 text-indigo-600",
+  }
+
+  return (
+    <div className="flex gap-3 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
+      <div className={cn("w-2 h-2 rounded-full mt-2 flex-shrink-0", toneColors[tone])} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-900">{title}</p>
+        <p className="text-xs text-slate-600 mt-0.5">{body}</p>
+        <p className="text-xs text-slate-400 mt-1">{time}</p>
+      </div>
+    </div>
+  )
+}
+
+export default DashboardPage
