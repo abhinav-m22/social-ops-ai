@@ -26,6 +26,10 @@ export interface Invoice {
   campaignName?: string
   amount: number
 
+  paymentTerms?: string
+  paymentSplit?: string
+  additionalNotes?: string
+
   gstAmount?: number
   tdsAmount?: number
   netPayable?: number

@@ -2,7 +2,10 @@
 
 import { useState } from "react"
 import { formatCurrency } from "@/lib/ui"
-import { ChevronRight, CheckCircle2, Circle } from "lucide-react"
+import { ChevronRight, CheckCircle2, Calculator, ArrowLeft, RefreshCw, AlertTriangle } from "lucide-react"
+import { NumberTicker } from "./ui/number-ticker"
+import { ShimmerButton } from "./ui/shimmer-button"
+import { cn } from "@/lib/ui"
 
 interface ITRResult {
   recommendedITR: string
@@ -148,29 +151,38 @@ export function ITRAssistant({ totalEarnings, totalTDS }: { totalEarnings: numbe
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">ITR Filing Assistant</h2>
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+          <Calculator size={24} />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">ITR Filing Assistant</h2>
+      </div>
 
       {/* Stepper */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-10 overflow-hidden px-1">
         {[1, 2, 3, 4].map((s) => (
-          <div key={s} className="flex items-center flex-1">
-            <div className="flex flex-col items-center">
+          <div key={s} className="flex items-center flex-1 last:flex-none">
+            <div className="flex flex-col items-center relative z-10">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300",
                   step >= s
-                    ? "bg-emerald-600 border-emerald-600 text-white"
-                    : "border-gray-300 text-gray-400"
-                }`}
+                    ? "bg-indigo-600 border-indigo-600 text-white"
+                    : "bg-white border-slate-200 text-slate-400"
+                )}
               >
                 {step > s ? (
                   <CheckCircle2 className="w-6 h-6" />
                 ) : (
-                  <span className="font-semibold">{s}</span>
+                  <span className="font-bold text-sm tracking-tight">{s}</span>
                 )}
               </div>
-              <span className="text-xs mt-2 text-gray-600 text-center">
-                {s === 1 && "Income Type"}
+              <span className={cn(
+                "text-[10px] font-bold uppercase tracking-wider mt-2 transition-colors duration-300 whitespace-nowrap",
+                step >= s ? "text-indigo-600" : "text-slate-400"
+              )}>
+                {s === 1 && "Income"}
                 {s === 2 && "Presumptive"}
                 {s === 3 && "Regime"}
                 {s === 4 && "Result"}
@@ -178,9 +190,10 @@ export function ITRAssistant({ totalEarnings, totalTDS }: { totalEarnings: numbe
             </div>
             {s < 4 && (
               <div
-                className={`flex-1 h-0.5 mx-2 ${
-                  step > s ? "bg-emerald-600" : "bg-gray-300"
-                }`}
+                className={cn(
+                  "flex-1 h-0.5 -mx-2.5 relative -top-2.5",
+                  step > s ? "bg-indigo-600" : "bg-slate-200"
+                )}
               />
             )}
           </div>
@@ -188,123 +201,134 @@ export function ITRAssistant({ totalEarnings, totalTDS }: { totalEarnings: numbe
       </div>
 
       {/* Step Content */}
-      <div className="min-h-[300px]">
+      <div className="min-h-75">
         {step === 1 && (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Income Type</h3>
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Income Classification</h3>
             <div className="space-y-3">
-              <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+              <label className="flex items-center p-5 border-2 border-indigo-100 bg-indigo-50/30 rounded-xl cursor-pointer hover:bg-indigo-50 transition-colors shadow-sm">
                 <input
                   type="radio"
                   name="incomeType"
                   value="business"
                   checked={incomeType === "business"}
                   onChange={(e) => setIncomeType(e.target.value)}
-                  className="mr-3"
+                  className="w-5 h-5 text-indigo-600 focus:ring-indigo-500 border-slate-300"
                 />
-                <div>
-                  <div className="font-medium text-gray-900">Business/Profession</div>
-                  <div className="text-sm text-gray-500">Content creation, freelancing, etc.</div>
+                <div className="ml-4">
+                  <div className="font-bold text-slate-900">Business/Profession</div>
+                  <div className="text-sm text-slate-500">Content creation, brand deals, freelancing.</div>
                 </div>
               </label>
             </div>
-            <p className="text-sm text-gray-500 mt-4">
-              Pre-filled based on your earnings data
+            <p className="text-sm text-slate-500 mt-6 flex items-center gap-2 italic">
+              <CheckCircle2 size={14} className="text-indigo-500" />
+              Automated classification based on your account activity.
             </p>
           </div>
         )}
 
         {step === 2 && (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">
               Presumptive Taxation Eligibility (Section 44ADA)
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Are you eligible for presumptive taxation? (Gross receipts ≤ ₹50 lakhs, 50% deemed profit)
+            <p className="text-sm text-slate-600 mb-6">
+              Tax is calculated on 50% of gross receipts if they are ≤ ₹50 lakhs for specified professions.
             </p>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 onClick={() => setPresumptiveEligible(true)}
-                className={`w-full p-4 border-2 rounded-lg text-left transition-colors ${
+                className={cn(
+                  "p-5 border-2 rounded-xl text-left transition-all duration-200 shadow-sm",
                   presumptiveEligible === true
-                    ? "border-emerald-600 bg-emerald-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
+                    ? "border-indigo-600 bg-indigo-50 shadow-md ring-2 ring-indigo-100"
+                    : "border-slate-100 bg-slate-50/50 hover:border-slate-300 hover:bg-white"
+                )}
               >
-                <div className="font-medium text-gray-900">Yes, I'm eligible</div>
-                <div className="text-sm text-gray-500">Gross receipts ≤ ₹50 lakhs</div>
+                <div className="font-bold text-slate-900 mb-1">Yes, I'm eligible</div>
+                <div className="text-sm text-slate-500">Gross receipts ≤ ₹50 lakhs</div>
               </button>
               <button
                 onClick={() => setPresumptiveEligible(false)}
-                className={`w-full p-4 border-2 rounded-lg text-left transition-colors ${
+                className={cn(
+                  "p-5 border-2 rounded-xl text-left transition-all duration-200 shadow-sm",
                   presumptiveEligible === false
-                    ? "border-emerald-600 bg-emerald-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
+                    ? "border-indigo-600 bg-indigo-50 shadow-md ring-2 ring-indigo-100"
+                    : "border-slate-100 bg-slate-50/50 hover:border-slate-300 hover:bg-white"
+                )}
               >
-                <div className="font-medium text-gray-900">No, not eligible</div>
-                <div className="text-sm text-gray-500">Regular books of accounts</div>
+                <div className="font-bold text-slate-900 mb-1">No, not eligible</div>
+                <div className="text-sm text-slate-500">Using regular books of accounts</div>
               </button>
             </div>
           </div>
         )}
 
         {step === 3 && (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Tax Regime Comparison</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Choose a regime to calculate. We'll show which is better for you.
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Tax Regime Selection</h3>
+            <p className="text-sm text-slate-600 mb-6">
+              We'll compare both regimes and suggest the most tax-efficient one.
             </p>
-            <div className="space-y-3 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
               <button
                 onClick={() => setRegime("old")}
-                className={`w-full p-4 border-2 rounded-lg text-left transition-colors ${
+                className={cn(
+                  "p-5 border-2 rounded-xl text-left transition-all duration-200 shadow-sm",
                   regime === "old"
-                    ? "border-emerald-600 bg-emerald-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
+                    ? "border-indigo-600 bg-indigo-50 shadow-md ring-2 ring-indigo-100"
+                    : "border-slate-100 bg-slate-50/50 hover:border-slate-300 hover:bg-white"
+                )}
               >
-                <div className="font-medium text-gray-900">Old Regime</div>
-                <div className="text-sm text-gray-500">Allows deductions (80C, 80D, etc.)</div>
+                <div className="font-bold text-slate-900 mb-1">Old Regime</div>
+                <div className="text-sm text-slate-500">Traditional structure with deductions.</div>
               </button>
               <button
                 onClick={() => setRegime("new")}
-                className={`w-full p-4 border-2 rounded-lg text-left transition-colors ${
+                className={cn(
+                  "p-5 border-2 rounded-xl text-left transition-all duration-200 shadow-sm",
                   regime === "new"
-                    ? "border-emerald-600 bg-emerald-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
+                    ? "border-indigo-600 bg-indigo-50 shadow-md ring-2 ring-indigo-100"
+                    : "border-slate-100 bg-slate-50/50 hover:border-slate-300 hover:bg-white"
+                )}
               >
-                <div className="font-medium text-gray-900">New Regime</div>
-                <div className="text-sm text-gray-500">Lower rates, fewer deductions</div>
+                <div className="font-bold text-slate-900 mb-1">New Regime</div>
+                <div className="text-sm text-slate-500">Simplified rates, no deductions.</div>
               </button>
             </div>
 
             {regime === "old" && (
-              <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+              <div className="bg-slate-50 rounded-xl p-6 space-y-5 border border-slate-200 animate-in fade-in duration-300">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Section 80C Deduction (₹)
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Section 80C Deductions (PPF, ELSS, Insurance)
                   </label>
-                  <input
-                    type="number"
-                    value={deduction80C}
-                    onChange={(e) => setDeduction80C(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    placeholder="e.g., 150000"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                    <input
+                      type="number"
+                      value={deduction80C}
+                      onChange={(e) => setDeduction80C(Number(e.target.value))}
+                      className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition-all shadow-sm"
+                      placeholder="Max ₹1,50,000"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Section 80D Deduction (₹)
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    Section 80D Deductions (Health Insurance)
                   </label>
-                  <input
-                    type="number"
-                    value={deduction80D}
-                    onChange={(e) => setDeduction80D(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    placeholder="e.g., 25000"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                    <input
+                      type="number"
+                      value={deduction80D}
+                      onChange={(e) => setDeduction80D(Number(e.target.value))}
+                      className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none transition-all shadow-sm"
+                      placeholder="e.g. ₹25,000"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -312,62 +336,73 @@ export function ITRAssistant({ totalEarnings, totalTDS }: { totalEarnings: numbe
         )}
 
         {step === 4 && result && (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">ITR Filing Recommendation</h3>
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Tax Analysis Results</h3>
+            <div className="bg-linear-to-br from-indigo-600 to-indigo-800 rounded-2xl p-8 text-white shadow-2xl relative overflow-hidden group space-y-6">
+              <div className="grid grid-cols-2 gap-8">
                 <div>
-                  <div className="text-sm text-gray-600">Recommended ITR Form</div>
-                  <div className="text-2xl font-bold text-emerald-700">{result.recommendedITR}</div>
+                  <div className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-1">Recommended Form</div>
+                  <div className="text-3xl font-black text-white">{result.recommendedITR}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">Suggested Regime</div>
-                  <div className="text-2xl font-bold text-emerald-700">{result.suggestedRegime} Regime</div>
+                  <div className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-1">Optimal Regime</div>
+                  <div className="text-3xl font-black text-white">{result.suggestedRegime}</div>
                 </div>
               </div>
-              <div className="border-t border-emerald-200 pt-4 space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Estimated Tax Payable</span>
-                  <span className="font-semibold text-gray-900">{formatCurrency(result.estimatedTaxPayable)}</span>
+              <div className="border-t border-indigo-200/50 pt-6 space-y-4">
+                <div className="flex justify-between items-center text-indigo-100">
+                  <span className="font-medium">Estimated Tax Payable</span>
+                  <div className="flex items-center font-bold text-white text-xl">
+                    <span>₹</span>
+                    <NumberTicker value={result.estimatedTaxPayable} />
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Already Paid (TDS)</span>
-                  <span className="font-semibold text-gray-900">{formatCurrency(result.alreadyPaidTDS)}</span>
+                <div className="flex justify-between items-center text-indigo-100">
+                  <span className="font-medium">Already Paid (TDS)</span>
+                  <div className="flex items-center font-bold text-white text-xl">
+                    <span>- ₹</span>
+                    <NumberTicker value={result.alreadyPaidTDS} />
+                  </div>
                 </div>
-                <div className="flex justify-between border-t border-emerald-200 pt-3">
-                  <span className="font-semibold text-gray-900">Remaining Tax</span>
-                  <span className="text-xl font-bold text-emerald-700">{formatCurrency(result.remaining)}</span>
+                <div className="flex justify-between items-center bg-white/60 p-4 rounded-xl border border-indigo-200 shadow-inner">
+                  <span className="font-bold text-slate-900 uppercase text-sm tracking-wide">Net Tax Remaining</span>
+                  <div className="flex items-center text-2xl font-black text-indigo-600">
+                    <span>₹</span>
+                    <NumberTicker value={result.remaining} />
+                  </div>
                 </div>
               </div>
             </div>
-            <p className="text-xs text-gray-500 mt-4">
-              This is a simplified calculation. Please consult a CA for accurate filing.
+            <p className="text-xs text-slate-500 mt-6 flex items-center gap-2 italic">
+              <AlertTriangle size={14} className="text-amber-500" />
+              Calculations are estimates. Please consult a qualified tax professional (CA) before filing.
             </p>
           </div>
         )}
       </div>
 
       {/* Navigation */}
-      <div className="flex justify-between mt-6 pt-6 border-t border-gray-200">
+      <div className="flex justify-between mt-8 pt-8 border-t border-slate-100">
         <button
           onClick={handleBack}
           disabled={step === 1}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-6 py-2.5 text-sm font-bold text-slate-600 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-sm"
         >
+          <ArrowLeft size={16} />
           Back
         </button>
         {step < 4 && (
-          <button
+          <ShimmerButton
             onClick={handleNext}
             disabled={
               (step === 2 && presumptiveEligible === null) ||
               (step === 3 && regime === null)
             }
-            className="px-6 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            className="px-8 shadow-md"
           >
             Next
             <ChevronRight className="w-4 h-4" />
-          </button>
+          </ShimmerButton>
         )}
         {step === 4 && (
           <button
@@ -379,8 +414,9 @@ export function ITRAssistant({ totalEarnings, totalTDS }: { totalEarnings: numbe
               setDeduction80D(0)
               setResult(null)
             }}
-            className="px-6 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+            className="px-8 py-2.5 text-sm font-bold text-white bg-slate-900 rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg"
           >
+            <RefreshCw size={16} />
             Start Over
           </button>
         )}

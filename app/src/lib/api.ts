@@ -6,7 +6,7 @@ const handle = async <T>(res: Response) => {
   if (!res.ok) {
     const msg = await res.text()
     const error = new Error(msg || `Request failed (${res.status})`)
-    ;(error as any).status = res.status
+      ; (error as any).status = res.status
     throw error
   }
   return (await res.json()) as T
@@ -89,6 +89,32 @@ export const fetchInvoiceByDealId = async (dealId: string) => {
     }
     throw error
   }
+}
+
+export const createOrGetInvoice = async (dealId: string, creatorId?: string) => {
+  const res = await fetch(`${API_BASE}/api/invoice/create-or-get`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dealId, creatorId }),
+  })
+  return handle<{ success: boolean; status: "created" | "exists"; invoice: any }>(res)
+}
+
+export const updateInvoiceDraft = async (invoiceId: string, updates: any) => {
+  const res = await fetch(`${API_BASE}/api/invoice/draft/${encodeURIComponent(invoiceId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  })
+  return handle<{ success: boolean; invoice: any }>(res)
+}
+
+export const fetchInvoices = async () => {
+  const res = await fetch(`${API_BASE}/api/invoice`, {
+    cache: "no-store",
+  })
+  const data = await handle<{ success: boolean; invoices: any[] }>(res)
+  return data.invoices || []
 }
 
 export const sendInvoiceEmail = async (invoiceId: string) => {
