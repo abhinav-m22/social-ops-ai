@@ -59,9 +59,14 @@ declare module 'motia' {
     'EmailWebhookEvent': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'message.received'; data: never }>
     'UpdateDeal': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'deal.updated'; data: never }>
     'SendAutoReply': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'deal.updated'; data: never }>
+    'SeedDeals': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetDashboardStats': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GetFinanceData': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetDeals': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetDealById': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GenerateFinanceInsights': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'ExportFinancePDF': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'ExportFinanceExcel': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CreatorActions': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'LogGreeting': EventHandler<{ requestId: string; greeting: string; processedBy: string }, never>
     'HelloAPI': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; status: string; appName: string }>, { topic: 'process-greeting'; data: { timestamp: string; appName: string; greetingPrefix: string; requestId: string } }>
@@ -69,11 +74,6 @@ declare module 'motia' {
     'ExtractInquiry': EventHandler<{ inquiryId: string; source: string; body: string; senderId?: string; threadKey?: string; sender?: { name?: string; platform?: string; id?: string } }, { topic: 'inquiry.extracted'; data: { inquiryId: string; source: string; extracted: unknown; sender?: unknown } }>
     'ClassifyMessage': EventHandler<{ messageId: string; source: string; body: string; senderId?: string; sender?: { name?: unknown; platform?: string; id?: string }; subject?: unknown; pageName?: unknown }, { topic: 'message.classified'; data: { messageId: string; source: string; body: string; subject?: string; senderId?: string; sender?: unknown; isBrandInquiry: boolean; confidence?: number; reasoning?: string; keywords?: Array<unknown>; classifiedAt?: string } }>
     'ProcessGreeting': EventHandler<{ timestamp: string; appName: string; greetingPrefix: string; requestId: string }, { topic: 'greeting-processed'; data: { requestId: string; greeting: string; processedBy: string } }>
-    'SeedDeals': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GetFinanceData': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'ExportFinancePDF': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'ExportFinanceExcel': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GenerateFinanceInsights': ApiRouteHandler<Record<string, unknown>, unknown, never>
   }
     
 }

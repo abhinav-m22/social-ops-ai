@@ -179,6 +179,7 @@ export const generateFinanceInsights = async (financeData: FinanceData): Promise
   })
   const data = await handle<{ success: boolean; insights: string; generatedAt: string }>(res)
   return data.insights
+}
 // Competitor Benchmarking API functions
 export const triggerCompetitorAnalysis = async (creatorId: string, force?: boolean) => {
   const res = await fetch(`${API_BASE}/competitor/analyze`, {
