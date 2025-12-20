@@ -1,4 +1,3 @@
-```markdown
 # SocialOps AI
 
 **AI-powered brand collaboration platform for content creators**
@@ -412,4 +411,3 @@ vercel --prod
 ## License
 
 MIT License - See LICENSE file for details
-```
