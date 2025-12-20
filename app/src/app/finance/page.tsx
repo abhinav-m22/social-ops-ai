@@ -8,6 +8,7 @@ import { TrendingUp, DollarSign, Receipt, FileText, Loader2, AlertCircle, Downlo
 import toast from "react-hot-toast"
 import Link from "next/link"
 import { ITRAssistant } from "@/components/ITRAssistant"
+import { AppLayout } from "@/components/AppLayout"
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4']
 
@@ -111,10 +112,10 @@ export default function FinancePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+    <AppLayout>
+      <div>
+        {/* Header */}
+        <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">FinanceHub</h1>
@@ -137,18 +138,9 @@ export default function FinancePage() {
                 <Download className="w-4 h-4" />
                 {exporting === "excel" ? "Exporting..." : "Export Excel"}
               </button>
-              <Link
-                href="/dashboard"
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Back to Dashboard
-              </Link>
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
         {/* AI Insights Section */}
         <div className="mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -256,9 +248,9 @@ export default function FinancePage() {
             <ResponsiveContainer width="100%" height={350}>
               <LineChart data={data.monthlyTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#6b7280" 
+                <XAxis
+                  dataKey="month"
+                  stroke="#6b7280"
                   fontSize={12}
                   tickFormatter={(value) => {
                     const date = new Date(value + '-01')
@@ -335,9 +327,9 @@ export default function FinancePage() {
 
         {/* ITR Filing Assistant */}
         <div className="mb-8">
-          <ITRAssistant 
-            totalEarnings={data.summary.totalEarnings} 
-            totalTDS={data.summary.totalTDS} 
+          <ITRAssistant
+            totalEarnings={data.summary.totalEarnings}
+            totalTDS={data.summary.totalTDS}
           />
         </div>
 
@@ -388,7 +380,7 @@ export default function FinancePage() {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout >
   )
 }
 

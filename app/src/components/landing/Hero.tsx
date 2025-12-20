@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+import Link from "next/link";
 import { ArrowRight, Play } from "lucide-react";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { BorderBeam } from "@/components/ui/border-beam";
@@ -50,12 +52,14 @@ export default function Hero() {
 
                     {/* CTA Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                        <ShimmerButton className="shadow-lg">
-                            <span className="whitespace-pre-wrap text-center text-sm font-medium leading-none tracking-tight text-white lg:text-lg flex items-center gap-2">
-                                Start Free Trial
-                                <ArrowRight className="w-5 h-5" />
-                            </span>
-                        </ShimmerButton>
+                        <Link href="/dashboard">
+                            <ShimmerButton className="shadow-lg">
+                                <span className="whitespace-pre-wrap text-center text-sm font-medium leading-none tracking-tight text-white lg:text-lg flex items-center gap-2">
+                                    Start Free Trial
+                                    <ArrowRight className="w-5 h-5" />
+                                </span>
+                            </ShimmerButton>
+                        </Link>
 
                         <button className="inline-flex h-12 items-center justify-center rounded-lg border-2 border-slate-300 bg-white px-8 text-sm font-medium text-slate-900 shadow-sm transition-all hover:bg-slate-50 hover:border-indigo-400 lg:text-base">
                             <Play className="w-5 h-5 mr-2" />

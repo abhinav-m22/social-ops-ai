@@ -9,6 +9,7 @@ import { NotificationBell, NotificationItem } from "@/components/NotificationBel
 import { Sparkles, Loader2, Plus, User, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import toast from "react-hot-toast"
+import { AppLayout } from "@/components/AppLayout"
 
 const DashboardPage = () => {
   const [deals, setDeals] = useState<Deal[]>([])
@@ -96,8 +97,8 @@ const DashboardPage = () => {
   }, [deals])
 
   return (
-    <main className="min-h-screen px-6 py-10 lg:px-12 space-y-10 max-w-[1600px] mx-auto">
-      <header className="flex items-center justify-between flex-wrap gap-4 pt-4">
+    <AppLayout notifications={notifications} onClearNotifications={() => setNotifications([])}>
+      <header className="flex items-center justify-between flex-wrap gap-4 mb-10">
         <div>
           <div className="text-sm text-emerald-700 font-semibold flex items-center gap-2 mb-1 bg-emerald-50 w-fit px-3 py-1 rounded-full border border-emerald-100">
             <Sparkles size={14} /> Premium Deals Dashboard
@@ -106,25 +107,6 @@ const DashboardPage = () => {
           <p className="text-gray-500 mt-1 text-lg">Manage brand deals, automate replies, and track your revenue.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            href="/finance"
-            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-5 py-2.5 text-sm font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
-          >
-            <TrendingUp size={18} /> FinanceHub
-          </Link>
-          <Link
-            href="/competitor-benchmarking"
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white text-gray-700 px-5 py-2.5 text-sm font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
-          >
-            <TrendingUp size={18} /> Benchmarking
-          </Link>
-          <Link
-            href="/creator/profile"
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white text-gray-700 px-5 py-2.5 text-sm font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
-          >
-            <User size={18} /> Profile
-          </Link>
-          <NotificationBell items={notifications} onClear={() => setNotifications([])} />
           <button className="inline-flex items-center gap-2 rounded-xl bg-gray-900 text-white px-5 py-2.5 text-sm font-medium shadow-lg shadow-gray-900/10 hover:shadow-xl hover:-translate-y-0.5 transition-all">
             <Plus size={18} /> Add Deal
           </button>
@@ -235,7 +217,7 @@ const DashboardPage = () => {
         onSend={handleManualSend}
         onDecline={reason => (selectedDeal ? handleDecline(selectedDeal, reason) : Promise.resolve())}
       />
-    </main>
+    </AppLayout>
   )
 }
 

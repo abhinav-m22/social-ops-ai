@@ -14,6 +14,7 @@ import { PlatformContentList } from "@/components/competitor-benchmarking/Platfo
 import { PlatformMetricsSummary } from "@/components/competitor-benchmarking/PlatformMetricsSummary"
 import { PlatformAIInsights } from "@/components/competitor-benchmarking/PlatformAIInsights"
 import { exportToPDF } from "@/lib/competitor-benchmarking/pdfExport"
+import { AppLayout } from "@/components/AppLayout"
 
 const CREATOR_ID = "default-creator"
 
@@ -55,7 +56,7 @@ const CompetitorBenchmarkingPage = () => {
 
   useEffect(() => {
     fetchState()
-    
+
     // Poll every 3 seconds if workflow is running
     if (status === 'running') {
       const interval = setInterval(fetchState, 3000)
@@ -67,7 +68,7 @@ const CompetitorBenchmarkingPage = () => {
     try {
       setAnalyzing(true)
       const result = await triggerCompetitorAnalysis(CREATOR_ID, force)
-      
+
       if (result.success) {
         toast.success(result.message || "Analysis started successfully")
         setStatus('running')
@@ -122,8 +123,8 @@ const CompetitorBenchmarkingPage = () => {
   }
 
   return (
-    <main className="min-h-screen px-6 py-10 lg:px-12 space-y-8 max-w-[1600px] mx-auto">
-      <header className="flex items-center justify-between flex-wrap gap-4 pt-4">
+    <AppLayout>
+      <header className="flex items-center justify-between flex-wrap gap-4 mb-8">
         <div>
           <div className="text-sm text-emerald-700 font-semibold flex items-center gap-2 mb-1 bg-emerald-50 w-fit px-3 py-1 rounded-full border border-emerald-100">
             <TrendingUp size={14} /> Competitor Benchmarking
@@ -179,7 +180,7 @@ const CompetitorBenchmarkingPage = () => {
                 const isRunning = platformStatus === 'running'
                 const isCompleted = platformStatus === 'completed'
                 const isFailed = platformStatus === 'failed'
-                
+
                 return (
                   <div key={platform} className="flex items-center gap-2 text-sm">
                     {isRunning && <Loader2 className="animate-spin text-blue-600" size={14} />}
@@ -323,7 +324,7 @@ const CompetitorBenchmarkingPage = () => {
           </>
         </div>
       )}
-    </main>
+    </AppLayout>
   )
 }
 
