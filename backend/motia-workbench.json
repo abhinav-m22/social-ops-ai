@@ -19,43 +19,6 @@
     }
   },
   {
-    "id": "dealflow",
-    "config": {
-      "src/steps/events/notify_deal_created.step.js": {
-        "x": 1050,
-        "y": 223
-      },
-      "src/steps/events/handle_deal_update.step.js": {
-        "x": 350,
-        "y": 34
-      },
-      "src/steps/events/create_deal_from_inquiry.step.js": {
-        "x": 700,
-        "y": 223
-      },
-      "src/steps/api/dashboard/update-deal.step.js": {
-        "x": 0,
-        "y": 0
-      },
-      "src/steps/api/dashboard/send-auto-reply.step.js": {
-        "x": 0,
-        "y": 223
-      },
-      "src/steps/api/dashboard/creator-actions.step.js": {
-        "x": 0,
-        "y": 446
-      },
-      "src/steps/events/store_inquiry_step.js": {
-        "x": 0,
-        "y": 223
-      },
-      "src/steps/events/extract_inquiry_step.py": {
-        "x": 350,
-        "y": 223
-      }
-    }
-  },
-  {
     "id": "dashboard",
     "config": {
       "src/steps/api/get-inquiries.step.js": {
@@ -148,6 +111,226 @@
       "src/steps/events/classify_message_step.py": {
         "x": 350,
         "y": 146
+      }
+    }
+  },
+  {
+    "id": "negotiation",
+    "config": {
+      "src/steps/events/update_deal_negotiation.step.js": {
+        "x": 1050,
+        "y": 165
+      },
+      "src/steps/events/rate_calculation_workflow.step.js": {
+        "x": 700,
+        "y": 145
+      },
+      "src/steps/events/negotiation_context_gate.step.js": {
+        "x": 350,
+        "y": 155
+      },
+      "src/steps/events/creator_decision_bridge.step.js": {
+        "x": 1387,
+        "y": 155
+      },
+      "src/steps/events/brand_inquiry_bridge.step.js": {
+        "x": 0,
+        "y": 0
+      },
+      "src/steps/events/brand_context_updated.step.js": {
+        "x": 0,
+        "y": 155
+      }
+    }
+  },
+  {
+    "id": "dealflow",
+    "config": {
+      "src/steps/events/update_deal_negotiation.step.js": {
+        "x": 1757,
+        "y": 850
+      },
+      "src/steps/events/rate_calculation_workflow.step.js": {
+        "x": 1400,
+        "y": 830
+      },
+      "src/steps/events/notify_deal_created.step.js": {
+        "x": 1050,
+        "y": 223
+      },
+      "src/steps/events/negotiation_context_gate.step.js": {
+        "x": 1050,
+        "y": 840
+      },
+      "src/steps/events/handle_deal_update.step.js": {
+        "x": 350,
+        "y": 34
+      },
+      "src/steps/events/creator_decision_bridge.step.js": {
+        "x": 2100,
+        "y": 736
+      },
+      "src/steps/events/create_deal_from_inquiry.step.js": {
+        "x": 700,
+        "y": 223
+      },
+      "src/steps/events/brand_inquiry_bridge.step.js": {
+        "x": 350,
+        "y": 409
+      },
+      "src/steps/events/brand_context_updated.step.js": {
+        "x": 700,
+        "y": 840
+      },
+      "src/steps/api/rate-recommendation.step.ts": {
+        "x": 0,
+        "y": 0
+      },
+      "src/steps/api/dashboard/update-deal.step.js": {
+        "x": 1750,
+        "y": 331
+      },
+      "src/steps/api/dashboard/send-auto-reply.step.js": {
+        "x": 0,
+        "y": 223
+      },
+      "src/steps/api/dashboard/creator-actions.step.js": {
+        "x": 0,
+        "y": 446
+      },
+      "src/steps/events/store_inquiry_step.js": {
+        "x": 0,
+        "y": 223
+      },
+      "src/steps/events/extract_inquiry_step.py": {
+        "x": 350,
+        "y": 223
+      }
+    }
+  },
+  {
+    "id": "competitor-benchmarking",
+    "config": {
+      "src/steps/competitor-benchmarking/platform-youtube-workflow.step.ts": {
+        "x": 1400,
+        "y": 0
+      },
+      "src/steps/competitor-benchmarking/platform-instagram-workflow.step.ts": {
+        "x": 1400,
+        "y": 175
+      },
+      "src/steps/competitor-benchmarking/platform-facebook-workflow.step.ts": {
+        "x": 1400,
+        "y": 350
+      },
+      "src/steps/competitor-benchmarking/orchestrate-platforms.step.ts": {
+        "x": 1750,
+        "y": 98
+      },
+      "src/steps/competitor-benchmarking/notify-creator.step.ts": {
+        "x": 2100,
+        "y": 256
+      },
+      "src/steps/competitor-benchmarking/fetch-competitor-content.step.ts": {
+        "x": 1050,
+        "y": 525
+      },
+      "src/steps/competitor-benchmarking/discover-youtube.step.ts": {
+        "x": 350,
+        "y": 76
+      },
+      "src/steps/competitor-benchmarking/discover-instagram.step.ts": {
+        "x": 350,
+        "y": 251
+      },
+      "src/steps/competitor-benchmarking/discover-instagram-dynamic.step.ts": {
+        "x": 350,
+        "y": 426
+      },
+      "src/steps/competitor-benchmarking/discover-facebook.step.ts": {
+        "x": 350,
+        "y": 581
+      },
+      "src/steps/competitor-benchmarking/discover-facebook-dynamic.step.ts": {
+        "x": 350,
+        "y": 756
+      },
+      "src/steps/competitor-benchmarking/discover-competitors.step.ts": {
+        "x": 0,
+        "y": 646
+      },
+      "src/steps/competitor-benchmarking/calculate-metrics.step.ts": {
+        "x": 1400,
+        "y": 525
+      },
+      "src/steps/competitor-benchmarking/api.get.step.ts": {
+        "x": 0,
+        "y": 821
+      },
+      "src/steps/competitor-benchmarking/api.analyze.step.ts": {
+        "x": 1050,
+        "y": 127
+      },
+      "src/steps/competitor-benchmarking/ai-analysis.step.ts": {
+        "x": 1750,
+        "y": 525
+      },
+      "src/steps/competitor-benchmarking/aggregate-final-insights.step.ts": {
+        "x": 2450,
+        "y": 256
+      },
+      "src/steps/competitor-benchmarking/aggregate-competitors.step.ts": {
+        "x": 700,
+        "y": 525
+      }
+    }
+  },
+  {
+    "id": "invoice",
+    "config": {
+      "src/steps/invoice/update-from-brand-reply.step.ts": {
+        "x": 0,
+        "y": 0
+      },
+      "src/steps/invoice/update-draft.step.ts": {
+        "x": 8,
+        "y": 155
+      },
+      "src/steps/invoice/request-missing-details.step.ts": {
+        "x": 350,
+        "y": 1067
+      },
+      "src/steps/invoice/get-invoices.step.ts": {
+        "x": 33,
+        "y": 358
+      },
+      "src/steps/invoice/get-invoice.step.ts": {
+        "x": 33,
+        "y": 561
+      },
+      "src/steps/invoice/create-or-get-draft.step.ts": {
+        "x": 0,
+        "y": 764
+      },
+      "src/steps/invoice/api.get-by-deal.step.ts": {
+        "x": 12,
+        "y": 1142
+      },
+      "src/steps/invoice/api.create-or-get.step.ts": {
+        "x": 2,
+        "y": 1345
+      },
+      "src/.motia/compiled/steps/invoice/update-from-brand-reply.step.js": {
+        "x": 0,
+        "y": 1325
+      },
+      "src/steps/invoice/api.send-invoice-email.step.ts": {
+        "x": 0,
+        "y": 1480
+      },
+      "src/.motia/compiled/steps/invoice/api.send-invoice-email.step.js": {
+        "x": 0,
+        "y": 1703
       }
     }
   }

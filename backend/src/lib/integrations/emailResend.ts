@@ -40,13 +40,13 @@ export async function sendEmail(
     // For testing without domain verification, use onboarding@resend.dev
     // For production, use a verified domain email
     let fromEmail = process.env.RESEND_FROM_EMAIL
-    
+
     // Fallback to test email if domain not verified
     if (!fromEmail) {
         logger?.warn('RESEND_FROM_EMAIL not set, using test email onboarding@resend.dev')
         fromEmail = 'onboarding@resend.dev'
     }
-    
+
     if (fromEmail.includes('.resend.app')) {
         logger?.warn('⚠️ .resend.app domains cannot be used for sending emails. Automatically switching to onboarding@resend.dev for testing.', {
             attemptedEmail: fromEmail,
@@ -64,7 +64,8 @@ export async function sendEmail(
         text: messageText,
         ...(options.inReplyTo && { inReplyTo: options.inReplyTo }),
         ...(options.references && { references: options.references }),
-        ...(options.replyTo && { replyTo: options.replyTo })
+        ...(options.replyTo && { replyTo: options.replyTo }),
+        ...(options.attachments && { attachments: options.attachments })
     }
 
     logger?.info('Sending email via Resend', {
@@ -82,7 +83,7 @@ export async function sendEmail(
         if (response.error) {
             const errorMessage = response.error.message || 'Unknown Resend API error'
             const statusCode = response.error.statusCode || response.error.status || 'unknown'
-            
+
             logger?.error('Resend API returned an error', {
                 error: errorMessage,
                 statusCode: statusCode,
@@ -90,12 +91,12 @@ export async function sendEmail(
                 recipientEmail,
                 fromEmail
             })
-            
+
             // Provide helpful error messages
             if (errorMessage.includes('domain is not verified')) {
                 throw new Error(`Domain verification required: ${errorMessage}. Please verify your domain at https://resend.com/domains or use onboarding@resend.dev for testing.`)
             }
-            
+
             throw new Error(`Resend API error (${statusCode}): ${errorMessage}`)
         }
 

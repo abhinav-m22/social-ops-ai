@@ -44,10 +44,10 @@ export const handler = async (req, ctx) => {
         }
 
         // Validate recipient information exists
-        const recipientId = platform === 'email' 
+        const recipientId = platform === 'email'
             ? (deal.brand?.email || deal.brand?.platformAccountId)
             : (deal.brand?.platformAccountId || deal.brand?.senderId)
-        
+
         if (!recipientId) {
             ctx.logger.error(`Recipient ${platform === 'email' ? 'email' : 'PSID'} not found in deal`, {
                 dealId,
@@ -77,16 +77,16 @@ export const handler = async (req, ctx) => {
         if (action === 'accept') {
             const agreedAmount = deal.negotiation?.brandOfferedAmount || deal.terms?.proposedBudget || 0
             replyMessage = `Confirmed. Happy to proceed at ${agreedAmount ? `₹${agreedAmount.toLocaleString('en-IN')}` : 'the agreed rate'}. Let's align on timelines & next steps.`
-            
+
             ctx.logger.info('Accept action: Generated confirmation message', {
                 dealId,
                 agreedAmount
             })
         } else {
             const userIntent = message ? message.trim() : null
-            
+
             const userCounterAmount = amount && !isNaN(parseFloat(amount)) ? parseFloat(amount) : null
-            
+
             try {
                 replyMessage = await generateProposalWithFallback(
                     deal,
@@ -95,9 +95,9 @@ export const handler = async (req, ctx) => {
                     `Hi ${deal.brand?.contactPerson || deal.brand?.name || 'there'}, thank you for reaching out! I'll get back to you soon.`,
                     ctx.logger,
                     {
-                        intent: userIntent, 
+                        intent: userIntent,
                         action: action,
-                        counterAmount: userCounterAmount 
+                        counterAmount: userCounterAmount
                     }
                 )
 
@@ -170,13 +170,13 @@ export const handler = async (req, ctx) => {
             }
         }
 
-        const agreedRate = action === 'accept' 
+        const agreedRate = action === 'accept'
             ? (deal.negotiation?.brandOfferedAmount || deal.terms?.proposedBudget || 0)
             : deal.terms?.agreedRate || 0
 
         let newStatus = deal.status
         if (action === 'accept') {
-            newStatus = 'active' 
+            newStatus = 'active'
         } else if (action === 'decline') {
             newStatus = 'declined'
         } else if (deal.status === 'new') {
@@ -203,9 +203,9 @@ export const handler = async (req, ctx) => {
             creatorReplyAction: action,
             terms: {
                 ...deal.terms,
-                agreedRate: agreedRate, 
-                gst: action === 'accept' ? Math.round(agreedRate * 0.18) : (deal.terms?.gst || 0),
-                total: action === 'accept' ? agreedRate + Math.round(agreedRate * 0.18) : (deal.terms?.total || 0)
+                agreedRate: agreedRate,
+                gst: deal.terms?.gst || 0,
+                total: deal.terms?.total || agreedRate
             },
             timeline: {
                 ...deal.timeline,

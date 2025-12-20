@@ -11,7 +11,7 @@
  * Emits: invoice.updated, invoice.details_received
  */
 import type { EventConfig, Handlers } from 'motia'
-import { getInvoiceByDealId, updateInvoice } from './service'
+import { getInvoiceByDealId, updateInvoice } from './service.js'
 
 export const config: EventConfig = {
   name: 'UpdateInvoiceFromBrandReply',
@@ -38,16 +38,16 @@ export const config: EventConfig = {
  */
 function extractEmail(text: string): string | null {
   if (!text) return null
-  
+
   // Common email regex
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
   const matches = text.match(emailRegex)
-  
+
   if (matches && matches.length > 0) {
     // Return first valid email found
     return matches[0].toLowerCase().trim()
   }
-  
+
   return null
 }
 
@@ -56,15 +56,15 @@ function extractEmail(text: string): string | null {
  */
 function extractGSTIN(text: string): string | null {
   if (!text) return null
-  
+
   // GSTIN format: 29ABCDE1234F1Z5 (15 characters, alphanumeric)
   const gstinRegex = /\b[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}\b/gi
   const matches = text.match(gstinRegex)
-  
+
   if (matches && matches.length > 0) {
     return matches[0].toUpperCase().trim()
   }
-  
+
   return null
 }
 
@@ -97,10 +97,10 @@ export const handler: any = async (
   try {
     // Find deal by Facebook sender ID
     const allDeals = await ctx.state.getGroup('deals')
-    const deal = (allDeals || []).find((d: any) => 
+    const deal = (allDeals || []).find((d: any) =>
       d.platform === 'facebook' &&
-      (d.brand?.platformAccountId === senderId || 
-       d.brand?.senderId === senderId) &&
+      (d.brand?.platformAccountId === senderId ||
+        d.brand?.senderId === senderId) &&
       d.status === 'active' // Only active deals need invoices
     )
 
@@ -114,7 +114,7 @@ export const handler: any = async (
 
     // Get invoice for this deal
     const invoice = await getInvoiceByDealId(deal.dealId, ctx.state)
-    
+
     if (!invoice) {
       ctx.logger.debug('UpdateInvoiceFromBrandReply: No invoice found for deal', {
         dealId: deal.dealId,
@@ -135,20 +135,25 @@ export const handler: any = async (
     // Extract details from message body
     const extractedEmail = extractEmail(body)
     const extractedGSTIN = extractGSTIN(body)
-    
+
     // Check if message contains any relevant details
     const hasEmail = !!extractedEmail
     const hasGSTIN = !!extractedGSTIN
-    const hasAddress = body.length > 50 && (
+    const hasAddress = (body.length > 5 && (
       body.toLowerCase().includes('address') ||
       body.toLowerCase().includes('street') ||
       body.toLowerCase().includes('road') ||
       body.toLowerCase().includes('city') ||
       body.toLowerCase().includes('pincode') ||
-      body.toLowerCase().includes('pin code')
-    )
+      body.toLowerCase().includes('pin code') ||
+      body.toLowerCase().includes('india')
+    )) || (body.split(',').length >= 2 && body.length < 200)
 
-    if (!hasEmail && !hasGSTIN && !hasAddress) {
+    const hasNoGST = body.toLowerCase().includes('gst is not applicable') ||
+      body.toLowerCase().includes('no gst') ||
+      body.toLowerCase().includes('gst not applicable')
+
+    if (!hasEmail && !hasGSTIN && !hasAddress && !hasNoGST) {
       ctx.logger.debug('UpdateInvoiceFromBrandReply: No invoice details found in message', {
         invoiceId: invoice.invoiceId,
         messageId,
@@ -159,7 +164,16 @@ export const handler: any = async (
 
     // Build update object
     const brandSnapshotUpdate: any = {}
-    
+    const invoiceUpdates: any = {}
+
+    if (hasNoGST) {
+      invoiceUpdates.gstAmount = 0
+      invoiceUpdates.netPayable = invoice.amount // Reset total to base amount
+      ctx.logger.info('UpdateInvoiceFromBrandReply: Detected GST not applicable', {
+        invoiceId: invoice.invoiceId
+      })
+    }
+
     if (hasEmail) {
       brandSnapshotUpdate.email = extractedEmail
       ctx.logger.info('UpdateInvoiceFromBrandReply: Extracted email from message', {
@@ -167,7 +181,7 @@ export const handler: any = async (
         email: extractedEmail
       })
     }
-    
+
     if (hasGSTIN) {
       brandSnapshotUpdate.gstin = extractedGSTIN
       ctx.logger.info('UpdateInvoiceFromBrandReply: Extracted GSTIN from message', {
@@ -175,16 +189,32 @@ export const handler: any = async (
         gstin: extractedGSTIN
       })
     }
-    
+
     if (hasAddress) {
-      // Extract address (take first substantial paragraph)
-      const addressMatch = body.match(/(?:address|street|road|city|pincode|pin code)[\s:]*([^\n]{20,200})/i)
+      // Extract address (take substantial part after keyword)
+      // Handles formats like "address: Gurgaon, India" or "company address: gurgaon, india"
+      const addressMatch = body.match(/(?:address|street|road|city|pincode|pin code)(?:\s+is)?[\s:]*([^\n,]{2,100}(?:,[^\n,]{2,100})*)/i)
       if (addressMatch && addressMatch[1]) {
-        brandSnapshotUpdate.address = addressMatch[1].trim()
+        let extracted = addressMatch[1].trim()
+
+        // Clean up trailing noise (if user provided GST or Email in the same sentence/line)
+        const stopWords = ['gst', 'email', 'contact', 'poc', 'thank', 'regards']
+        for (const word of stopWords) {
+          const lowerExtracted = extracted.toLowerCase()
+          const index = lowerExtracted.indexOf(word)
+          if (index > 0) { // Should have some content before the stop word
+            extracted = extracted.substring(0, index).replace(/[,:\s]+$/, '').trim()
+          }
+        }
+
+        brandSnapshotUpdate.address = extracted
         ctx.logger.info('UpdateInvoiceFromBrandReply: Extracted address from message', {
           invoiceId: invoice.invoiceId,
-          addressPreview: brandSnapshotUpdate.address.substring(0, 50)
+          address: brandSnapshotUpdate.address
         })
+      } else if (body.length < 200 && !hasEmail && !hasGSTIN) {
+        // If message is short and doesn't have other details, it might be just the address
+        brandSnapshotUpdate.address = body.trim()
       }
     }
 
@@ -197,6 +227,7 @@ export const handler: any = async (
 
     // Update invoice
     const updateResult = await updateInvoice(invoice.invoiceId, {
+      ...invoiceUpdates,
       brandSnapshot: brandSnapshotUpdate
     }, ctx.state)
 

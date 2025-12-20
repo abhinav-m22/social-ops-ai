@@ -2,7 +2,7 @@
  * Service layer for Invoice operations
  * Handles state management and business logic
  */
-import type { Invoice, BrandSnapshot, CreateInvoiceResult, UpdateInvoiceResult } from './types'
+import type { Invoice, BrandSnapshot, CreateInvoiceResult, UpdateInvoiceResult } from './types.js'
 
 const STATE_GROUP = 'invoices'
 
@@ -41,7 +41,7 @@ export async function createOrGetDraftInvoice(
 ): Promise<CreateInvoiceResult> {
   // Check if invoice already exists for this deal
   const existingInvoice = await getInvoiceByDealId(dealId, state)
-  
+
   if (existingInvoice) {
     return {
       status: 'exists',
@@ -54,7 +54,7 @@ export async function createOrGetDraftInvoice(
   const invoiceId = `INV-${Date.now()}-${dealId.slice(-6)}`
 
   // Extract deliverables as strings
-  const deliverables = (deal.terms?.deliverables || []).map((d: any) => 
+  const deliverables = (deal.terms?.deliverables || []).map((d: any) =>
     `${d.count}x ${d.type}${d.description ? ': ' + d.description : ''}`
   )
 
@@ -97,11 +97,11 @@ export async function createOrGetDraftInvoice(
 
     deliverables,
     campaignName: deal.extractedData?.campaign?.name,
-    amount: deal.terms?.total || deal.terms?.agreedRate || 0,
+    amount: deal.terms?.agreedRate || deal.terms?.total || 0,
 
-    gstAmount: undefined,
+    gstAmount: deal.terms?.gst || 0,
     tdsAmount: undefined,
-    netPayable: undefined,
+    netPayable: deal.terms?.total || undefined,
 
     missingFields: missingFields.length > 0 ? missingFields : undefined,
 
@@ -154,7 +154,7 @@ export async function updateInvoice(
     creatorId: existing.creatorId, // Ensure creatorId is not changed
     updatedAt: now,
     // Merge brandSnapshot if provided
-    brandSnapshot: updates.brandSnapshot 
+    brandSnapshot: updates.brandSnapshot
       ? { ...existing.brandSnapshot, ...updates.brandSnapshot }
       : existing.brandSnapshot
   }
