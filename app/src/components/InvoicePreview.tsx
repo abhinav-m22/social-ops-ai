@@ -41,7 +41,7 @@ export const InvoicePreview = ({ invoice, className }: Props) => {
                     <div>
                         <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3">From</p>
                         <div className="space-y-1">
-                            <p className="text-lg font-bold text-slate-900">{creator?.name || "Creator Name"}</p>
+                            <p className="text-lg font-bold text-slate-900">{creator?.fullName || creator?.name || "Creator Name"}</p>
                             <p className="text-sm text-slate-600 font-medium">{creator?.email}</p>
                             {creator?.gstin && <p className="text-sm text-slate-500">GSTIN: {creator.gstin}</p>}
                             <p className="text-sm text-slate-500 wrap-break-word max-w-62.5">{creator?.address}</p>
@@ -132,11 +132,11 @@ export const InvoicePreview = ({ invoice, className }: Props) => {
                         </div>
                         <div>
                             <p className="text-slate-400 font-medium mb-1">IFSC Code</p>
-                            <p className="text-slate-900 font-bold">{creator?.ifscCode || "HDFC0001234"}</p>
+                            <p className="text-slate-900 font-bold">{creator?.ifsc || creator?.ifscCode || "HDFC0001234"}</p>
                         </div>
                         <div>
                             <p className="text-slate-400 font-medium mb-1">Account Holder</p>
-                            <p className="text-slate-900 font-bold">{creator?.name || "Creator Name"}</p>
+                            <p className="text-slate-900 font-bold">{creator?.fullName || creator?.name || "Creator Name"}</p>
                         </div>
                     </div>
                 </div>
