@@ -118,7 +118,7 @@ export const fetchInvoices = async () => {
 }
 
 export const sendInvoiceEmail = async (invoiceId: string) => {
-  const res = await fetch(`${API_BASE}/api/invoice/${invoiceId}/send`, {
+  const res = await fetch(`${API_BASE}/api/invoice/send/${invoiceId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
   })
