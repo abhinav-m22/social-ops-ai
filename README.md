@@ -263,7 +263,7 @@ We've leveraged Motia's core primitives to build a robust, event-driven system:
 
 3. **Initialize environment**:
    ```bash
-   cp .env.example .env
+   cp backend/.env.example backend/.env
    ```
 
 ### 🏃 Execution
