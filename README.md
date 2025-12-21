@@ -79,6 +79,8 @@ SocialOps AI is a Motia-native system that automates the complete brand partners
    - Overdue reminders escalate: Day +3, +7, +15
    - Deal transitions to `paid` on creator confirmation
 
+![workflow](assets/workflow.png)
+
 **Context-Aware State Management**: All updates to existing conversations (brand follow-ups, clarifications, renegotiations) append to the same deal object. The system maintains conversation continuity by matching brand identity and prevents duplicate deal creation through intelligent deduplication logic.
 
 ---
@@ -213,71 +215,16 @@ Daily web scraping job (11 PM IST) collects trending topics from YouTube, Google
 
 ---
 
-## 🛠️ Motia Primitives Used
+## 🛠️ Motia Primitives
 
 We've leveraged Motia's core primitives to build a robust, event-driven system:
 
-- **⚡ Workflows (`step.run`, `step.invoke`)**: Used to orchestrate complex, multi-stage processes like the Deal Lifecycle (from inquiry to payment) and Automated Invoicing. Motia ensures these are durable and can handle long waits (e.g., waiting 7 days for a deadline).
-- **⏰ Scheduled Jobs (`cron`)**: Powers our background automation, including daily deadline monitoring, hourly performance metric syncing, and nightly trend analysis using Perplexity.
-- **💾 State Management**: Motia's persistent KV store keeps a single source of truth for all brand conversations, creator profiles, and cached market rates, ensuring no data is lost during long-running workflows.
-- **📡 Custom Motia Streams**: Enables a snappy, real-time UI by pushing state changes (like "New Deal Received" or "Payment Confirmed") directly to the dashboard over WebSockets, eliminating the need for slow polling. 🚀
+- **🔌 APIs**: Fast and reliable API endpoints that power the frontend and handle external webhooks with built-in validation.
+- **⚙️ Background Jobs**: Powers our background automation, including daily deadline monitoring, hourly performance metric syncing, and nightly trend analysis.
+- **📡 Streams**: Enables a snappy, real-time UI by pushing state changes directly to the dashboard over WebSockets, eliminating the need for slow polling. 🚀
+- **💾 States**: Motia's persistent KV store keeps a single source of truth for all brand conversations, creator profiles, and cached market rates, ensuring no data is lost during long-running workflows.
+- **🤖 Workflows (including Agentic Workflows)**: Used to orchestrate complex, multi-stage processes like the Deal Lifecycle and Automated Invoicing with durable execution and AI-driven decision making.
 
----
-
-## Design & Reliability Decisions
-
-### Idempotency
-All webhook handlers and workflow entry points implement idempotency keys to handle duplicate deliveries. Facebook webhooks frequently retry on network issues; system deduplicates using `messageId` + `creatorId` hash before workflow invocation.
-
-### Deal Identity & State Transitions
-Deals identified by composite key: `(brandName.normalized, creatorId)`. Normalization handles variations ("TechGadgets India" vs "techgadgets") using fuzzy matching. State machine enforces valid transitions; invalid operations (e.g., accepting already-declined deal) are rejected with error logging.
-
-### Failure Handling
-**Transient Failures**: Motia's durable execution automatically retries failed steps with exponential backoff. External API timeouts (Perplexity, YouTube) fallback to cached data or baseline calculations.
-
-**Permanent Failures**: Invalid webhooks (malformed JSON, missing required fields) logged to error stream with alert to operations dashboard. User-facing errors display actionable messages ("Unable to fetch market rates - using baseline calculation").
-
-**Compensation**: Payment tracking workflows implement compensation logic: if invoice email fails, workflow retries 3x with increasing delays, then flags deal for manual intervention rather than silently failing.
-
-### Data Consistency
-State updates wrapped in transactions where Motia guarantees atomic writes. Deal negotiations append to history array; concurrent updates use last-write-wins with conflict detection. Critical operations (payment confirmation) require explicit user action to prevent race conditions.
-
----
-
-## Extensibility
-
-### Platform Expansion
-Ingestion layer abstraction allows new platforms with minimal changes:
-1. Add webhook handler for platform (Instagram, LinkedIn, Discord)
-2. Implement message normalization to standard format
-3. Register platform-specific authentication flow
-4. All downstream workflows operate on normalized data unchanged
-
-### Workflow Modularity
-Each module invokes sub-workflows independently. Adding "Contract Generation" feature requires:
-- New workflow for DocuSign integration
-- Emit `deal.contract_generated` event
-- UI subscribes to event for real-time status update
-- No changes to existing negotiation or invoicing workflows
-
-### AI Model Flexibility
-Rate calculator abstracts AI provider behind interface. Switching from Claude to GPT-4 requires implementing `RateCalculatorAgent` interface—no changes to workflow orchestration. Supports A/B testing different models for quality comparison.
-
-### Multi-Tenancy
-Creator isolation enforced at state layer via `creatorId` scoping. Adding agency/team features requires:
-- Group-level permissions model
-- Stream filtering by `teamId` instead of `creatorId`
-- Aggregated dashboards across team members
-- Core workflows remain creator-scoped, orchestration layer handles aggregation
-
-### International Markets
-System designed for India (GST/TDS) but extensible:
-- Tax calculation plugins per jurisdiction
-- Currency handling with exchange rate API
-- Locale-specific invoice templates
-- Market rate data sources per region
-
-**Scaling Strategy**: Current architecture supports 10K creators on single Motia instance. Horizontal scaling achieved by partitioning workflows by `creatorId` hash across multiple Motia runtimes. Stateless intelligence layer (AI APIs) scales independently.
 
 ---
 
@@ -305,8 +252,8 @@ System designed for India (GST/TDS) but extensible:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-org/socialops-ai
-   cd socialops-ai
+   git clone https://github.com/your-org/social-ops-ai
+   cd social-ops-ai
    ```
 
 2. **Install dependencies**:
