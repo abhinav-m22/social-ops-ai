@@ -16,6 +16,7 @@ const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/finance", label: "Finance", icon: DollarSign },
     { href: "/competitor-benchmarking", label: "Analytics", icon: BarChart3 },
+    { href: "/trend-scout", label: "TrendScout", icon: TrendingUp },
     { href: "/invoices", label: "Invoices", icon: ReceiptText }
 ]
 

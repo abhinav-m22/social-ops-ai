@@ -8,12 +8,22 @@ import { EventHandler, ApiRouteHandler, ApiResponse, MotiaStream, CronHandler } 
 
 declare module 'motia' {
   interface FlowContextStateStreams {
+    'trendScout': MotiaStream<{ status: 'idle' | 'running' | 'completed' | 'failed'; platforms?: { youtube: string; googleTrends: string; twitter: string; facebook: string; instagram: string }; results?: Array<{ platform: string; trends: Array<unknown> }>; aggregatedTrends?: unknown; message?: string; timestamp?: string }>
     'notifications': MotiaStream<{ title: string; body: string; tone?: 'success' | 'info' | 'warning'; dealId?: string }>
     'deals': MotiaStream<{}>
     'analysis': MotiaStream<{ status: string; progress?: number; message?: string }>
   }
 
   interface Handlers {
+    'YouTubeTrendAnalyzer': EventHandler<{ niche: string; creatorId: string }, { topic: 'trend.platform.completed'; data: { platform: string; niche?: string; creatorId: string; trends: Array<unknown> } }>
+    'TwitterTrendAnalyzer': EventHandler<{ niche: string; creatorId: string }, { topic: 'trend.platform.completed'; data: { platform: string; niche?: string; creatorId: string; trends: Array<unknown> } }>
+    'TrendInterpreter': EventHandler<{ creatorId: string; niche: string; aggregatedResults: Array<unknown> }, never>
+    'OrchestrateTrends': EventHandler<{ platform: string; niche?: string; creatorId: string; trends: Array<unknown> }, { topic: 'trend.analyze'; data: { creatorId: string; niche: string; aggregatedResults: Array<unknown> } }>
+    'InstagramTrendAnalyzer': EventHandler<{ niche: string; creatorId: string }, { topic: 'trend.platform.completed'; data: { platform: string; niche?: string; creatorId: string; trends: Array<unknown> } }>
+    'GoogleTrendAnalyzer': EventHandler<{ niche: string; creatorId: string }, { topic: 'trend.platform.completed'; data: { platform: string; niche?: string; creatorId: string; trends: Array<unknown> } }>
+    'FacebookTrendAnalyzer': EventHandler<{ niche: string; creatorId: string }, { topic: 'trend.platform.completed'; data: { platform: string; niche?: string; creatorId: string; trends: Array<unknown> } }>
+    'TriggerTrendScout': ApiRouteHandler<{ creatorId: string; niche: string }, ApiResponse<200, { success: boolean; message: string; status: string }> | ApiResponse<500, { success: boolean; error: string }>, { topic: 'trend.platform.youtube'; data: { niche: string; creatorId: string } } | { topic: 'trend.platform.google-trends'; data: { niche: string; creatorId: string } } | { topic: 'trend.platform.twitter'; data: { niche: string; creatorId: string } } | { topic: 'trend.platform.facebook'; data: { niche: string; creatorId: string } } | { topic: 'trend.platform.instagram'; data: { niche: string; creatorId: string } }>
+    'GetTrendScoutState': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'UpdateInvoiceFromBrandReply': EventHandler<{ messageId: string; source: string; body: string; senderId?: string; sender?: unknown }, never>
     'UpdateInvoiceDraft': ApiRouteHandler<{ invoiceNumber?: string; invoiceDate?: string; dueDate?: string; campaignName?: string; brandSnapshot?: { name?: string; email?: string; pocName?: string; gstin?: string; address?: string }; gstAmount?: number; tdsAmount?: number; netPayable?: number }, ApiResponse<200, { success: boolean; invoice: unknown }> | ApiResponse<400, { success: boolean; error: string; issues?: Array<unknown> }> | ApiResponse<404, { success: boolean; error: string }> | ApiResponse<500, { success: boolean; error: string }>, never>
     'RequestMissingInvoiceDetails': EventHandler<{ invoiceId: string; dealId: string; creatorId?: string; status?: string; missingFields?: Array<unknown> }, never>
@@ -54,6 +64,7 @@ declare module 'motia' {
     'AIAnalysis': EventHandler<{ creatorId: string }, { topic: 'competitor.notify.creator'; data: { creatorId: string } }>
     'AggregateFinalInsights': EventHandler<{ creatorId: string }, never>
     'AggregateCompetitors': EventHandler<{ creatorId: string; platform: string; competitors?: Array<{ platform?: string; external_id?: string; name?: string; follower_count?: number }> }, { topic: 'competitor.content.fetch'; data: { creatorId: string; competitors?: Array<{ platform?: string; external_id?: string; name?: string; follower_count?: number }> } }>
+    'RateRecommendation': ApiRouteHandler<{ inquiryId?: string; brandDetails: { brandName: string; deliverables: string; proposedBudget?: number | unknown }; creatorMetrics: { niche: string; followers: number; platform: 'instagram' | 'youtube' | 'facebook'; contentType: 'reel' | 'video' | 'post' | 'short'; country?: 'India' | 'US'; avgLikes: number; avgComments: number; avgShares: number; avgViews: number; postsLast30Days: number } }, unknown, never>
     'GetInquiries': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'FacebookWebhookVerify': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'FacebookWebhookEvent': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'message.received'; data: never }>

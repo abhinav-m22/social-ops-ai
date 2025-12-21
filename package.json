@@ -6,8 +6,8 @@
     "app"
   ],
   "scripts": {
-    "backend": "npm run dev --workspace=backend",
-    "app": "npm run dev --workspace=app",
+    "backend": "cd backend && npm run dev",
+    "app": "cd app && npm run dev",
     "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=app\"",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
