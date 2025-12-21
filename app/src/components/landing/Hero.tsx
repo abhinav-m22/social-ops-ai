@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Play, TrendingUp } from "lucide-react";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Particles } from "@/components/ui/particles";
@@ -11,17 +11,49 @@ import { cn } from "@/lib/utils";
 
 export default function Hero() {
     return (
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white">
-            {/* Animated particles background */}
-            <Particles
-                className="absolute inset-0 pointer-events-none"
-                quantity={80}
-                ease={80}
-                color="#6366f1"
-                refresh
-            />
+        <section className="relative min-h-screen flex flex-col overflow-hidden bg-white">
+            {/* Header with Logo and Name */}
+            <header className="relative z-20 w-full border-b border-slate-200 bg-white/80 backdrop-blur-sm">
+                <div className="container mx-auto px-6 py-4 max-w-7xl">
+                    <div className="flex items-center justify-between">
+                        <Link href="/" className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-indigo-600 to-cyan-500 shadow-md flex items-center justify-center shrink-0">
+                                <TrendingUp className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-xl font-bold bg-linear-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
+                                SocialOps AI
+                            </span>
+                        </Link>
+                        <div className="flex items-center gap-4">
+                            <Link
+                                href="/dashboard"
+                                className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors"
+                            >
+                                Dashboard
+                            </Link>
+                            <Link
+                                href="/dashboard"
+                                className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+                            >
+                                Get Started
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </header>
 
-            <div className="relative z-10 container mx-auto px-6 py-20 max-w-7xl">
+            {/* Hero Content */}
+            <div className="relative flex-1 flex items-center justify-center">
+                {/* Animated particles background */}
+                <Particles
+                    className="absolute inset-0 pointer-events-none"
+                    quantity={80}
+                    ease={80}
+                    color="#6366f1"
+                    refresh
+                />
+
+                <div className="relative z-10 container mx-auto px-6 py-20 max-w-7xl">
                 <div className="flex flex-col items-center text-center space-y-8">
                     {/* Animated tagline */}
                     <AnimatedGradientText className="mb-4">
@@ -112,6 +144,7 @@ export default function Hero() {
                             </div>
                         </div>
                     </div> */}
+                </div>
                 </div>
             </div>
         </section>
