@@ -86,14 +86,12 @@ export default function Hero() {
                     </div>
 
                     {/* Hero Image/Dashboard Mockup */}
-                    <div className="relative w-full max-w-5xl mt-16">
+                    {/* <div className="relative w-full max-w-5xl mt-16">
                         <div className="relative rounded-2xl overflow-hidden shadow-xl bg-white border-2 border-slate-200 p-1">
                             <BorderBeam size={250} duration={12} delay={9} />
                             <div className="rounded-xl bg-slate-50 p-8">
-                                {/* Dashboard mockup placeholder */}
                                 <div className="aspect-video bg-white rounded-lg shadow-sm border border-slate-200 p-6">
                                     <div className="grid grid-cols-3 gap-4 h-full">
-                                        {/* Sidebar */}
                                         <div className="space-y-3">
                                             <div className="h-8 bg-gradient-to-r from-indigo-200 to-indigo-100 rounded"></div>
                                             <div className="h-6 bg-slate-100 rounded"></div>
@@ -101,7 +99,6 @@ export default function Hero() {
                                             <div className="h-6 bg-slate-100 rounded"></div>
                                             <div className="h-6 bg-slate-100 rounded"></div>
                                         </div>
-                                        {/* Main content */}
                                         <div className="col-span-2 space-y-3">
                                             <div className="h-10 bg-gradient-to-r from-cyan-200 to-indigo-200 rounded"></div>
                                             <div className="grid grid-cols-2 gap-3">
@@ -114,7 +111,7 @@ export default function Hero() {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </section>

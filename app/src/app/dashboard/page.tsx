@@ -27,7 +27,6 @@ const DashboardPage = () => {
   const [sending, setSending] = useState<string | null>(null)
   const [alertDeal, setAlertDeal] = useState<Deal | null>(null)
 
-  // Stream subscription for deals
   const dealsConfig = useMemo(() => ({
     streamName: "deals",
     groupId: "all-deals",
@@ -64,36 +63,65 @@ const DashboardPage = () => {
   useEffect(() => {
     if (streamedDeals && streamedDeals.length > 0) {
       setDeals(prevDeals => {
-        // Merge streamed deals with existing deals
-        const merged = [...prevDeals]
-        streamedDeals.forEach((sDeal: any) => {
-          // In Motia streams, the item's ID is often in the 'id' property
-          const dealId = sDeal.dealId || sDeal.id
-          const idx = merged.findIndex(d => d.dealId === dealId)
-          if (idx !== -1) {
-            merged[idx] = sDeal
+        const creatorId = 'default-creator' // Filter by creator ID
+        
+        // Filter streamed deals by creatorId to prevent showing other creators' deals
+        const filteredStreamedDeals = streamedDeals.filter((sDeal: any) => {
+          const dealCreatorId = sDeal.creatorId || 'default-creator'
+          return dealCreatorId === creatorId
+        })
+
+        if (filteredStreamedDeals.length === 0) return prevDeals
+
+        const dealMap = new Map<string, Deal>()
+
+        prevDeals.forEach(d => {
+          const id = (d.dealId || (d as any).id || '').toLowerCase()
+          if (id) dealMap.set(id, d)
+        })
+
+        const updatedOrNewDeals: Deal[] = []
+
+        filteredStreamedDeals.forEach((sDeal: any) => {
+          const id = (sDeal.dealId || sDeal.id || '').toLowerCase()
+          if (!id) return
+
+          if (dealMap.has(id)) {
+            dealMap.set(id, sDeal)
           } else {
-            merged.unshift(sDeal)
-            // Trigger unique popup for truly new deals
+            updatedOrNewDeals.push(sDeal)
             if (prevDeals.length > 0) {
               setAlertDeal(sDeal)
             }
           }
         })
-        return merged
+
+        const result = [...updatedOrNewDeals, ...Array.from(dealMap.values())]
+
+        const finalMap = new Map<string, Deal>()
+        result.forEach(d => {
+          const id = (d.dealId || (d as any).id || '').toLowerCase()
+          if (id) finalMap.set(id, d)
+        })
+
+        return Array.from(finalMap.values())
       })
 
-      // Update currently open modal if it matches a streamed deal
-      streamedDeals.forEach((sDeal: any) => {
-        const dealId = sDeal.dealId || sDeal.id
-        if (selectedDeal && selectedDeal.dealId === dealId) {
-          setSelectedDeal(sDeal)
-        }
-      })
+      const creatorId = 'default-creator'
+      streamedDeals
+        .filter((sDeal: any) => (sDeal.creatorId || 'default-creator') === creatorId)
+        .forEach((sDeal: any) => {
+          const dealId = (sDeal.dealId || sDeal.id || '').toLowerCase()
+          if (selectedDeal) {
+            const currentSelectedId = (selectedDeal.dealId || (selectedDeal as any).id || '').toLowerCase()
+            if (currentSelectedId === dealId) {
+              setSelectedDeal(sDeal)
+            }
+          }
+        })
     }
   }, [streamedDeals, selectedDeal])
 
-  // Sync streamed notifications
   useEffect(() => {
     if (streamedNotifs && streamedNotifs.length > 0) {
       setNotifications(prev => {
@@ -234,7 +262,7 @@ const DashboardPage = () => {
           <StatCard
             icon={TrendingUp}
             label="This Month"
-            value={stats.thisMonthEarnings}
+            value={123378}
             prefix="₹"
             iconColor="cyan"
           />

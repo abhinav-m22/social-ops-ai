@@ -73,16 +73,23 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
     deal.status === "RATE_RECOMMENDED" ||
     deal.status === "FINALIZED"
 
-  const handleNegotiationAction = async (action: "accept" | "counter" | "decline") => {
+  const handleNegotiationAction = async (action: "accept" | "counter" | "decline", providedAmount?: number) => {
     try {
       setLoading(true)
       let amount: number | undefined
       let msg: string | undefined
 
       if (action === "counter") {
-        amount = showCustomCounter ? parseFloat(customAmount) : parseFloat(counterAmount)
-        if (isNaN(amount)) {
+        // Use provided amount if given, otherwise check state
+        if (providedAmount !== undefined) {
+          amount = providedAmount
+        } else {
+          amount = showCustomCounter ? parseFloat(customAmount) : parseFloat(counterAmount)
+        }
+        
+        if (isNaN(amount) || amount <= 0) {
           alert("Please enter a valid amount")
+          setLoading(false)
           return
         }
       }
@@ -501,8 +508,10 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
                           <button
                             disabled={loading}
                             onClick={() => {
-                              setCounterAmount(deal.negotiation!.aiRecommendedRates.market.toString())
-                              handleNegotiationAction("counter")
+                              // Pass amount directly to avoid React state timing issues
+                              const marketRate = deal.negotiation!.aiRecommendedRates.market
+                              setCounterAmount(marketRate.toString())
+                              handleNegotiationAction("counter", marketRate)
                             }}
                             className="flex-1 bg-amber-100 border border-amber-300 text-amber-800 hover:bg-amber-200 rounded-xl py-3 px-4 font-semibold text-sm transition-all"
                           >
@@ -526,7 +535,14 @@ export const DealModal = ({ deal, onClose, onSend, onDecline }: Props) => {
                           />
                           <button
                             disabled={loading}
-                            onClick={() => handleNegotiationAction("counter")}
+                            onClick={() => {
+                              const amount = parseFloat(customAmount)
+                              if (isNaN(amount) || amount <= 0) {
+                                alert("Please enter a valid amount")
+                                return
+                              }
+                              handleNegotiationAction("counter", amount)
+                            }}
                             className="px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold text-sm transition-all shadow-md"
                           >
                             Send

@@ -239,3 +239,12 @@ export const clearNotifications = async () => {
   })
   return handle<{ success: boolean }>(res)
 }
+
+export const clearStreams = async (streamType?: 'deals' | 'notifications') => {
+  const res = await fetch(`${API_BASE}/api/streams/clear`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ streamType }),
+  })
+  return handle<{ success: boolean; message: string; cleared: string[] }>(res)
+}
